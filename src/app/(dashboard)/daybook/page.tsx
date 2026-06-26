@@ -1,0 +1,1331 @@
+'use client';
+
+import React, { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { 
+  Plus, 
+  Trash2, 
+  Save, 
+  CheckCircle2, 
+  AlertTriangle,
+  ArrowRight,
+  TrendingUp,
+  CreditCard,
+  Wallet,
+  Building,
+  Coins,
+  Receipt,
+  ShoppingBag,
+  Info,
+  ClipboardList
+} from 'lucide-react';
+
+// Form Validation Schemas
+const openDaybookSchema = z.object({
+  opening_cash: z.coerce.number().nonnegative('Opening cash must be 0 or greater'),
+  bank_opening_balance: z.coerce.number().nonnegative('Bank opening balance must be 0 or greater'),
+});
+
+const expenseSchema = z.object({
+  expense_category_id: z.string().uuid('Please select a category'),
+  amount: z.coerce.number().positive('Amount must be greater than 0'),
+  description: z.string().min(5, 'Description must be at least 5 characters long'),
+  payment_mode: z.enum(['cash', 'bank']),
+});
+
+const purchaseSchema = z.object({
+  vendor_id: z.string().uuid('Please select a vendor'),
+  purchase_head_id: z.string().uuid('Please select a purchase head'),
+  invoice_number: z.string().min(1, 'Invoice number is required'),
+  amount: z.coerce.number().positive('Amount must be greater than 0'),
+  payment_mode: z.enum(['cash', 'bank', 'credit']),
+});
+
+const incomeSchema = z.object({
+  source: z.string().min(3, 'Source must be at least 3 characters long'),
+  amount: z.coerce.number().positive('Amount must be greater than 0'),
+  payment_method: z.enum(['cash', 'gpay', 'card']),
+  description: z.string().optional(),
+});
+
+type OpenDaybookForm = z.infer<typeof openDaybookSchema>;
+type ExpenseForm = z.infer<typeof expenseSchema>;
+type PurchaseForm = z.infer<typeof purchaseSchema>;
+type IncomeForm = z.infer<typeof incomeSchema>;
+
+interface Denomination {
+  val: number;
+  label: string;
+  field: string;
+}
+
+function DaybookContent() {
+  const supabase = createClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Tab Syncing
+  const activeTab = searchParams.get('tab') || 'sales';
+  const handleTabChange = (tabId: string) => {
+    router.push(`/daybook?tab=${tabId}`);
+  };
+
+  const [daybook, setDaybook] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Active daybook lists
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [incomeList, setIncomeList] = useState<any[]>([]);
+  const [salesTransactions, setSalesTransactions] = useState<any[]>([]);
+
+  // Selection Dropdowns
+  const [categories, setCategories] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [heads, setHeads] = useState<any[]>([]);
+
+  // Modal Dialogs Toggles
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [incomeOpen, setIncomeOpen] = useState(false);
+
+  // Sales Splits State
+  const [salesSplits, setSalesSplits] = useState({
+    cash: 0,
+    gpay: 0,
+    card: 0,
+    swiggy: 0,
+    zomato: 0,
+    online: 0,
+  });
+
+  // Denominations State
+  const [denomCounts, setDenomCounts] = useState<Record<string, number>>({
+    denom_500: 0,
+    denom_200: 0,
+    denom_100: 0,
+    denom_50: 0,
+    denom_20: 0,
+    denom_10: 0,
+    denom_coins: 0,
+  });
+
+  // Bank flow State
+  const [bankOpening, setBankOpening] = useState(0);
+  const [bankDeposits, setBankDeposits] = useState(0);
+  const [bankWithdrawals, setBankWithdrawals] = useState(0);
+  const [justification, setJustification] = useState('');
+
+  // Form Handlers
+  const openForm = useForm<OpenDaybookForm>({ resolver: zodResolver(openDaybookSchema) as any });
+  const expForm = useForm<ExpenseForm>({ resolver: zodResolver(expenseSchema) as any });
+  const purForm = useForm<PurchaseForm>({ resolver: zodResolver(purchaseSchema) as any });
+  const incForm = useForm<IncomeForm>({ resolver: zodResolver(incomeSchema) as any });
+
+  const denominationList: Denomination[] = [
+    { val: 500, label: '₹500 Note', field: 'denom_500' },
+    { val: 200, label: '₹200 Note', field: 'denom_200' },
+    { val: 100, label: '₹100 Note', field: 'denom_100' },
+    { val: 50, label: '₹50 Note', field: 'denom_50' },
+    { val: 20, label: '₹20 Note', field: 'denom_20' },
+    { val: 10, label: '₹10 Note', field: 'denom_10' },
+    { val: 1, label: 'Coins', field: 'denom_coins' },
+  ];
+
+  const formatRupee = (value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  async function loadActiveDaybook() {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+
+      const todayString = new Date().toISOString().split('T')[0];
+      const { data: db, error } = await supabase
+        .from('daybooks')
+        .select('*')
+        .eq('business_date', todayString)
+        .maybeSingle();
+
+      if (db) {
+        setDaybook(db);
+        setJustification(db.variance_justification || '');
+        setBankOpening(Number(db.bank_opening_balance) || 0);
+        setBankDeposits(Number(db.bank_deposits) || 0);
+        setBankWithdrawals(Number(db.bank_withdrawals) || 0);
+
+        const { data: exp } = await supabase.from('expenses').select('*').eq('daybook_id', db.id);
+        const { data: pur } = await supabase.from('purchases').select('*').eq('daybook_id', db.id);
+        const { data: inc } = await supabase.from('income').select('*').eq('daybook_id', db.id);
+        const { data: sales } = await supabase.from('sales_transactions').select('*').eq('daybook_id', db.id);
+
+        setExpenses(exp || []);
+        setPurchases(pur || []);
+        setIncomeList(inc || []);
+        setSalesTransactions(sales || []);
+
+        setSalesSplits({
+          cash: Number(db.sales_cash) || 0,
+          gpay: Number(db.sales_gpay) || 0,
+          card: Number(db.sales_card) || 0,
+          swiggy: Number(db.sales_swiggy) || 0,
+          zomato: Number(db.sales_zomato) || 0,
+          online: Number(db.sales_online) || 0,
+        });
+
+        setDenomCounts({
+          denom_500: db.denom_500 || 0,
+          denom_200: db.denom_200 || 0,
+          denom_100: db.denom_100 || 0,
+          denom_50: db.denom_50 || 0,
+          denom_20: db.denom_20 || 0,
+          denom_10: db.denom_10 || 0,
+          denom_coins: db.denom_coins || 0,
+        });
+      } else {
+        setDaybook(null);
+      }
+    } catch {
+      setErrorMsg('Could not read daybook database. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadActiveDaybook();
+
+    async function loadSelectData() {
+      const { data: cat } = await supabase.from('expense_categories').select('id, name');
+      const { data: vnd } = await supabase.from('vendors').select('id, name');
+      const { data: hd } = await supabase.from('purchase_heads').select('id, name');
+      setCategories(cat || []);
+      setVendors(vnd || []);
+      setHeads(hd || []);
+    }
+    loadSelectData();
+  }, [supabase]);
+
+  // Calculations
+  const isEditable = daybook && (daybook.status === 'draft' || daybook.status === 'rejected');
+
+  const totalSalesSplits = Object.values(salesSplits).reduce((a: number, b: number) => a + b, 0);
+  const totalPurchasesValue = purchases.reduce((acc: number, row: any) => acc + Number(row.amount), 0);
+  const foodCostPercent = totalSalesSplits > 0 ? (totalPurchasesValue / totalSalesSplits) * 100 : 0;
+
+  const totalCashSales = salesSplits.cash;
+  const totalCashExpenses = expenses.filter((e: any) => e.payment_mode === 'cash' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0);
+  const totalCashPurchases = purchases.filter((p: any) => p.payment_mode === 'cash').reduce((a: number, b: any) => a + Number(b.amount), 0);
+  const totalCashIncome = incomeList.filter((i: any) => i.payment_method === 'cash').reduce((a: number, b: any) => a + Number(b.amount), 0);
+
+  const expectedCash = daybook 
+    ? Number(daybook.opening_cash) + totalCashSales + totalCashIncome - totalCashPurchases - totalCashExpenses - bankDeposits + bankWithdrawals
+    : 0;
+
+  const actualCash = denominationList.reduce((acc: number, row: any) => acc + (row.val * (denomCounts[row.field] || 0)), 0);
+  const cashDifference = actualCash - expectedCash;
+
+  // Background Auto-Save
+  useEffect(() => {
+    if (!daybook || !isEditable) return;
+    const saveTimer = setTimeout(() => {
+      handleSaveDraft(true);
+    }, 1500);
+
+    return () => clearTimeout(saveTimer);
+  }, [salesSplits, denomCounts, bankDeposits, bankWithdrawals, justification]);
+
+  const handleOpenDaybook = async (values: OpenDaybookForm) => {
+    try {
+      setErrorMsg(null);
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('users')
+        .select('tenant_id, primary_branch_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!user || !profile) {
+        setErrorMsg('User profile session not found. Please log in again.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('daybooks')
+        .insert({
+          tenant_id: profile.tenant_id,
+          branch_id: profile.primary_branch_id,
+          business_date: new Date().toISOString().split('T')[0],
+          opening_cash: values.opening_cash,
+          bank_opening_balance: values.bank_opening_balance,
+          status: 'draft',
+          created_by: user.id,
+        });
+
+      if (error) {
+        setErrorMsg(error.message);
+        return;
+      }
+      loadActiveDaybook();
+    } catch {
+      setErrorMsg('Failed to open daybook.');
+    }
+  };
+
+  const handleSaveDraft = async (silent = false) => {
+    if (!daybook) return;
+    try {
+      if (!silent) setLoading(true);
+      else setSavingDraft(true);
+      setErrorMsg(null);
+      if (!silent) setSuccessMsg(null);
+
+      // Save sales splits
+      for (const [method, amount] of Object.entries(salesSplits)) {
+        const invoiceNo = `DAILY_SUM_${method.toUpperCase()}_${daybook.id}`;
+        const existingTx = salesTransactions.find(tx => tx.payment_method === method);
+
+        if (existingTx) {
+          await supabase
+            .from('sales_transactions')
+            .update({
+              amount_gross: amount,
+              amount_net: amount,
+            })
+            .eq('id', existingTx.id);
+        } else {
+          if (amount >= 0) {
+            await supabase
+              .from('sales_transactions')
+              .insert({
+                tenant_id: daybook.tenant_id,
+                branch_id: daybook.branch_id,
+                daybook_id: daybook.id,
+                invoice_number: invoiceNo,
+                payment_method: method,
+                amount_gross: amount,
+                amount_discount: 0,
+                amount_tax: 0,
+                amount_net: amount,
+              });
+          }
+        }
+      }
+
+      // Update daybook details
+      const { error } = await supabase
+        .from('daybooks')
+        .update({
+          physical_cash: actualCash,
+          bank_deposits: bankDeposits,
+          bank_withdrawals: bankWithdrawals,
+          denom_500: denomCounts.denom_500,
+          denom_200: denomCounts.denom_200,
+          denom_100: denomCounts.denom_100,
+          denom_50: denomCounts.denom_50,
+          denom_20: denomCounts.denom_20,
+          denom_10: denomCounts.denom_10,
+          denom_coins: denomCounts.denom_coins,
+          variance_justification: justification || null,
+        })
+        .eq('id', daybook.id);
+
+      if (error) throw error;
+
+      if (!silent) {
+        setSuccessMsg('Daybook draft saved successfully.');
+        await loadActiveDaybook();
+      } else {
+        // Quietly update salesTransactions list in state
+        const { data: sales } = await supabase.from('sales_transactions').select('*').eq('daybook_id', daybook.id);
+        setSalesTransactions(sales || []);
+      }
+    } catch (err: any) {
+      if (!silent) setErrorMsg(err.message || 'Failed to save draft.');
+    } finally {
+      if (!silent) setLoading(false);
+      else setSavingDraft(false);
+    }
+  };
+
+  const handleAddExpense = async (values: ExpenseForm) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .insert({
+          tenant_id: daybook.tenant_id,
+          branch_id: daybook.branch_id,
+          daybook_id: daybook.id,
+          expense_category_id: values.expense_category_id,
+          amount: values.amount,
+          description: values.description,
+          payment_mode: values.payment_mode,
+          requires_hq_approval: values.amount > 1500.00,
+          is_approved: values.amount <= 1500.00,
+        });
+
+      if (error) throw error;
+      setExpenseOpen(false);
+      expForm.reset();
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Error saving expense');
+    }
+  };
+
+  const handleAddPurchase = async (values: PurchaseForm) => {
+    try {
+      const { error } = await supabase
+        .from('purchases')
+        .insert({
+          tenant_id: daybook.tenant_id,
+          branch_id: daybook.branch_id,
+          daybook_id: daybook.id,
+          vendor_id: values.vendor_id,
+          purchase_head_id: values.purchase_head_id,
+          invoice_number: values.invoice_number,
+          invoice_date: new Date().toISOString().split('T')[0],
+          amount: values.amount,
+          payment_mode: values.payment_mode,
+          payment_status: values.payment_mode === 'credit' ? 'unpaid' : 'paid',
+        });
+
+      if (error) throw error;
+      setPurchaseOpen(false);
+      purForm.reset();
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Error saving purchase');
+    }
+  };
+
+  const handleAddIncome = async (values: IncomeForm) => {
+    try {
+      const { error } = await supabase
+        .from('income')
+        .insert({
+          tenant_id: daybook.tenant_id,
+          branch_id: daybook.branch_id,
+          daybook_id: daybook.id,
+          source: values.source,
+          amount: values.amount,
+          payment_method: values.payment_method,
+          description: values.description,
+        });
+
+      if (error) throw error;
+      setIncomeOpen(false);
+      incForm.reset();
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Error saving income log');
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Error deleting expense');
+    }
+  };
+
+  const handleDeletePurchase = async (id: string) => {
+    try {
+      const { error } = await supabase.from('purchases').delete().eq('id', id);
+      if (error) throw error;
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Error deleting purchase');
+    }
+  };
+
+  const handleDeleteIncome = async (id: string) => {
+    try {
+      const { error } = await supabase.from('income').delete().eq('id', id);
+      if (error) throw error;
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Error deleting income log');
+    }
+  };
+
+  const handleSubmitDaybook = async () => {
+    if (Math.abs(cashDifference) > 0 && !justification.trim()) {
+      alert('Justification comments are mandatory when a cash variance exists.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await handleSaveDraft(true);
+
+      const { error } = await supabase
+        .from('daybooks')
+        .update({
+          status: 'submitted',
+          closed_at: new Date().toISOString(),
+        })
+        .eq('id', daybook.id);
+
+      if (error) throw error;
+      await loadActiveDaybook();
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit daybook');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDenomChange = (field: string, val: string) => {
+    const parsed = parseInt(val) || 0;
+    setDenomCounts(prev => ({ ...prev, [field]: parsed }));
+  };
+
+  const handleSplitChange = (channel: string, val: string) => {
+    const parsed = parseFloat(val) || 0;
+    setSalesSplits(prev => ({ ...prev, [channel]: parsed }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-350 border-t-primary"></div>
+        <p className="text-sm font-semibold text-slate-500">Loading daily worksheet...</p>
+      </div>
+    );
+  }
+
+  // Daybook Closed / Not Initialized Initial State
+  if (!daybook) {
+    return (
+      <div className="mx-auto max-w-md mt-16 px-4">
+        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-xl rounded-2xl">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-2">
+              <Wallet className="h-6 w-6" />
+            </div>
+            <CardTitle className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Initialize Daybook</CardTitle>
+            <CardDescription className="text-slate-500 text-sm">
+              Provide starting cash float and bank opening balance to open today's outlet sheet.
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={openForm.handleSubmit(handleOpenDaybook)}>
+            <CardContent className="space-y-4 pt-4">
+              {errorMsg && (
+                <div className="p-3 text-xs bg-rose-50 text-rose-600 rounded-xl border border-rose-100 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="opening_cash" className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Starting Cash Float (₹)
+                </Label>
+                <Input
+                  id="opening_cash"
+                  type="number"
+                  step="0.01"
+                  placeholder="₹10,000.00"
+                  className={`font-semibold text-lg h-12 focus:ring-primary ${openForm.formState.errors.opening_cash ? 'border-rose-500' : 'border-stone-200'}`}
+                  {...openForm.register('opening_cash')}
+                />
+                {openForm.formState.errors.opening_cash && (
+                  <p className="text-xs text-rose-500">{openForm.formState.errors.opening_cash.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="bank_opening_balance" className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Bank Opening Balance (₹)
+                </Label>
+                <Input
+                  id="bank_opening_balance"
+                  type="number"
+                  step="0.01"
+                  placeholder="₹50,000.00"
+                  className={`font-semibold text-lg h-12 focus:ring-primary ${openForm.formState.errors.bank_opening_balance ? 'border-rose-500' : 'border-stone-200'}`}
+                  {...openForm.register('bank_opening_balance')}
+                />
+                {openForm.formState.errors.bank_opening_balance && (
+                  <p className="text-xs text-rose-500">{openForm.formState.errors.bank_opening_balance.message}</p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="pt-2 pb-6">
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-xl shadow-md transition-all duration-200">
+                Initialize Shift Open
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  // List of active tabs
+  const tabs = [
+    { id: 'sales', label: 'Sales Split', icon: ClipboardList },
+    { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
+    { id: 'expenses', label: 'Expenses', icon: Receipt },
+    { id: 'bank', label: 'Bank & Safe', icon: Building },
+    { id: 'cashbook', label: 'Cash & Coins', icon: Coins },
+  ];
+
+  return (
+    <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6">
+      {/* Header Info Banner */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-stone-200 dark:border-slate-800 pb-5 gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Daily Daybook Worksheet</h1>
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border uppercase tracking-wide ${
+              daybook.status === 'draft' 
+                ? 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/50' 
+                : daybook.status === 'submitted'
+                ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20'
+                : daybook.status === 'approved'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20'
+                : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/20'
+            }`}>
+              {daybook.status}
+            </span>
+            {daybook.status === 'draft' && (
+              <span className="text-[10px] text-stone-500 font-medium flex items-center gap-1.5 ml-2 bg-stone-100 dark:bg-stone-900 px-2 py-0.5 rounded-full">
+                {savingDraft ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                    <span>Auto-saving draft...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span>Draft auto-saved</span>
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Spreadsheet-style entries for sales split registers, petty cash, and daily drawer reconciliation.
+          </p>
+        </div>
+        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-stone-100/50 dark:bg-slate-900 border dark:border-slate-800 px-4 py-2 rounded-xl">
+          Business Date: {new Date(daybook.business_date).toLocaleDateString('en-IN', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          })}
+        </div>
+      </div>
+
+      {/* Rejection Notification Banner */}
+      {daybook.status === 'rejected' && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-xl border border-rose-200 bg-rose-50/50 dark:border-rose-900/50 dark:bg-rose-950/10 text-sm text-rose-800 dark:text-rose-400 shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+            <div>
+              <p className="font-semibold text-slate-900 dark:text-white">Daybook Rejected by Area Manager/HQ</p>
+              <p className="mt-1 text-xs text-rose-700 dark:text-rose-500">
+                <strong>HQ Comment:</strong> {daybook.variance_justification || 'No reason provided.'}
+              </p>
+            </div>
+          </div>
+          <Button 
+            onClick={async () => {
+              try {
+                const { error } = await supabase
+                  .from('daybooks')
+                  .update({ status: 'draft' })
+                  .eq('id', daybook.id);
+                if (error) throw error;
+                loadActiveDaybook();
+              } catch (err: any) {
+                alert(err.message || 'Failed to re-open daybook');
+              }
+            }}
+            className="bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs px-4 h-9 shadow-sm shrink-0"
+          >
+            Re-open for Correction
+          </Button>
+        </div>
+      )}
+
+      {/* Tab Switcher Horizontal Bar */}
+      <div className="flex flex-wrap gap-2 pb-2 border-b border-stone-200 dark:border-stone-850">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isSelected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-xl border transition-all duration-200 ${
+                isSelected
+                  ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/10'
+                  : 'bg-white border-stone-200 hover:bg-stone-50 text-stone-600 dark:bg-stone-900 dark:border-stone-800 dark:text-stone-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Two Column Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* Left Side: Active Tab Worksheet Form */}
+        <div className="xl:col-span-2 space-y-6">
+          
+          {/* TAB 1: SALES SPLITS */}
+          {activeTab === 'sales' && (
+            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Sales Splits (₹)</CardTitle>
+                    <CardDescription className="text-xs">Record net sales across payment channels</CardDescription>
+                  </div>
+                  <div className="text-lg font-bold font-mono text-primary">
+                    Total: {formatRupee(totalSalesSplits)}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
+                {[
+                  { key: 'cash', label: 'Cash Sales', icon: Wallet, color: 'text-emerald-500' },
+                  { key: 'gpay', label: 'GPay/UPI', icon: CreditCard, color: 'text-indigo-500' },
+                  { key: 'card', label: 'Card Swipe', icon: CreditCard, color: 'text-blue-500' },
+                  { key: 'swiggy', label: 'Swiggy', icon: TrendingUp, color: 'text-orange-500' },
+                  { key: 'zomato', label: 'Zomato', icon: TrendingUp, color: 'text-rose-500' },
+                  { key: 'online', label: 'Other Online', icon: ArrowRight, color: 'text-slate-500' },
+                ].map(item => (
+                  <div key={item.key} className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      <item.icon className={`h-4 w-4 ${item.color}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={!isEditable}
+                      value={salesSplits[item.key as keyof typeof salesSplits] || ''}
+                      placeholder="₹0.00"
+                      onChange={(e) => handleSplitChange(item.key, e.target.value)}
+                      className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 2: PURCHASES */}
+          {activeTab === 'purchases' && (
+            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Purchases Log (₹)</CardTitle>
+                  <CardDescription className="text-xs">Record local procurements (Cash, Bank or credit accounts)</CardDescription>
+                </div>
+                {isEditable && (
+                  <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
+                    <DialogTrigger render={
+                      <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
+                        <Plus className="h-4 w-4" /> Add Purchase Invoice
+                      </Button>
+                    } />
+                    <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
+                      <DialogHeader>
+                        <DialogTitle>Add Purchase Entry</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={purForm.handleSubmit(handleAddPurchase)} className="space-y-4 pt-2">
+                        <div>
+                          <Label htmlFor="vendor_id" className="text-xs font-semibold">Vendor / Supplier</Label>
+                          <Select onValueChange={(v: any) => purForm.setValue('vendor_id', v)}>
+                            <SelectTrigger className="w-full mt-1.5 h-11">
+                              <SelectValue placeholder="Select supplier" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                              {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="purchase_head_id" className="text-xs font-semibold">GL Account Classification</Label>
+                          <Select onValueChange={(v: any) => purForm.setValue('purchase_head_id', v)}>
+                            <SelectTrigger className="w-full mt-1.5 h-11">
+                              <SelectValue placeholder="Select GL Head" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                              {heads.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="invoice_number" className="text-xs font-semibold">Invoice Number</Label>
+                            <Input id="invoice_number" {...purForm.register('invoice_number')} className="mt-1.5 h-11" />
+                          </div>
+                          <div>
+                            <Label htmlFor="amount" className="text-xs font-semibold">Gross Amount (₹)</Label>
+                            <Input id="amount" type="number" step="0.01" {...purForm.register('amount')} className="mt-1.5 h-11" />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="payment_mode" className="text-xs font-semibold">Payment Mode</Label>
+                          <Select onValueChange={(v) => purForm.setValue('payment_mode', v as any)} defaultValue="cash">
+                            <SelectTrigger className="w-full mt-1.5 h-11">
+                              <SelectValue placeholder="Payment Mode" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                              <SelectItem value="cash">Cash (Drawer Outflow)</SelectItem>
+                              <SelectItem value="bank">Bank Swipe / UPI</SelectItem>
+                              <SelectItem value="credit">Credit (On Accounts AP)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <DialogFooter className="pt-2">
+                          <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
+                            Save Purchase
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
+                    <TableRow className="border-stone-100 dark:border-slate-900">
+                      <TableHead className="pl-6">Invoice</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Classification</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      {isEditable && <TableHead className="w-12"></TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {purchases.length > 0 ? (
+                      purchases.map((row) => (
+                        <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
+                          <TableCell className="pl-6 font-semibold text-slate-800 dark:text-slate-200">{row.invoice_number}</TableCell>
+                          <TableCell className="text-slate-600">{vendors.find(v => v.id === row.vendor_id)?.name || 'Unknown Vendor'}</TableCell>
+                          <TableCell className="text-slate-500">{heads.find(h => h.id === row.purchase_head_id)?.name || 'Purchases'}</TableCell>
+                          <TableCell>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${
+                              row.payment_mode === 'credit'
+                                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                : 'bg-slate-50 border-stone-200 text-slate-650'
+                            }`}>
+                              {row.payment_mode}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-slate-800">{formatRupee(Number(row.amount))}</TableCell>
+                          {isEditable && (
+                            <TableCell className="pr-6 text-center">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleDeletePurchase(row.id)}
+                                className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={isEditable ? 6 : 5} className="text-center py-12 text-slate-400">
+                          <Info className="h-5 w-5 mx-auto text-stone-300 mb-1.5" />
+                          <p className="text-xs font-medium">No purchases logged today.</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 3: EXPENSES */}
+          {activeTab === 'expenses' && (
+            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Petty Cash Expenses (₹)</CardTitle>
+                  <CardDescription className="text-xs">Record outlet operational petty cash voucher usage</CardDescription>
+                </div>
+                {isEditable && (
+                  <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
+                    <DialogTrigger render={
+                      <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
+                        <Plus className="h-4 w-4" /> Add Petty Expense
+                      </Button>
+                    } />
+                    <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
+                      <DialogHeader>
+                        <DialogTitle>Log Petty Cash Expense</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={expForm.handleSubmit(handleAddExpense)} className="space-y-4 pt-2">
+                        <div>
+                          <Label htmlFor="expense_category_id" className="text-xs font-semibold">Expense Category</Label>
+                          <Select onValueChange={(v: any) => expForm.setValue('expense_category_id', v)}>
+                            <SelectTrigger className="w-full mt-1.5 h-11">
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                              {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="amount" className="text-xs font-semibold">Voucher Value (₹)</Label>
+                          <Input id="amount" type="number" step="0.01" {...expForm.register('amount')} className="mt-1.5 h-11" />
+                        </div>
+                        <div>
+                          <Label htmlFor="description" className="text-xs font-semibold">Details / Justification</Label>
+                          <Input id="description" placeholder="e.g. Electricity bill payout / Broom stick buy" {...expForm.register('description')} className="mt-1.5 h-11" />
+                        </div>
+                        <div>
+                          <Label htmlFor="payment_mode" className="text-xs font-semibold">Expense Origin</Label>
+                          <Select onValueChange={(v) => expForm.setValue('payment_mode', v as any)} defaultValue="cash">
+                            <SelectTrigger className="w-full mt-1.5 h-11">
+                              <SelectValue placeholder="Payment mode" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                              <SelectItem value="cash">Petty Cash Float (Drawer)</SelectItem>
+                              <SelectItem value="bank">UPI / Bank Pay</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <DialogFooter className="pt-2">
+                          <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
+                            Save Expense
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
+                    <TableRow className="border-stone-100 dark:border-slate-900">
+                      <TableHead className="pl-6">Category</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead>Origin</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      {isEditable && <TableHead className="w-12"></TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses.length > 0 ? (
+                      expenses.map((row) => (
+                        <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
+                          <TableCell className="pl-6 font-semibold text-slate-800 dark:text-slate-200">
+                            {categories.find(c => c.id === row.expense_category_id)?.name || 'General Expense'}
+                          </TableCell>
+                          <TableCell className="text-slate-600">{row.description}</TableCell>
+                          <TableCell className="text-xs uppercase font-semibold text-slate-500">{row.payment_mode}</TableCell>
+                          <TableCell>
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
+                              row.is_approved 
+                                ? 'bg-emerald-50 border-emerald-250 text-emerald-700 dark:bg-emerald-950/10' 
+                                : 'bg-amber-50 border-amber-250 text-amber-700 dark:bg-amber-950/10'
+                            }`}>
+                              {row.is_approved ? 'Approved' : 'Pending HQ'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold text-slate-800">{formatRupee(Number(row.amount))}</TableCell>
+                          {isEditable && (
+                            <TableCell className="pr-6 text-center">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleDeleteExpense(row.id)}
+                                className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={isEditable ? 6 : 5} className="text-center py-12 text-slate-400">
+                          <Info className="h-5 w-5 mx-auto text-stone-300 mb-1.5" />
+                          <p className="text-xs font-medium">No petty expenses logged today.</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 4: BANK & SAFE */}
+          {activeTab === 'bank' && (
+            <div className="space-y-6">
+              <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+                <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
+                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Bank Safe Flows (₹)</CardTitle>
+                  <CardDescription className="text-xs">Monitor bank opening balances, safe box drops, and bank withdrawals</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                  <div className="space-y-1.5 p-4 rounded-xl border border-stone-150 dark:border-stone-900 bg-stone-50/10">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">Bank Opening Balance</span>
+                    <span className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-200 mt-1 block">{formatRupee(bankOpening)}</span>
+                  </div>
+                  <div className="space-y-1.5 p-4 rounded-xl border border-emerald-100 dark:border-emerald-950/25 bg-emerald-50/20">
+                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide block">Calculated Bank Closing</span>
+                    <span className="text-2xl font-bold font-mono text-emerald-700 block mt-1">{formatRupee(bankOpening + bankDeposits - bankWithdrawals)}</span>
+                  </div>
+                  <div className="space-y-1.5 p-4 rounded-xl border border-stone-150 dark:border-stone-900 bg-stone-50/10">
+                    <Label htmlFor="bank_deposits" className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bank Deposits / Safe Drops</Label>
+                    <Input
+                      id="bank_deposits"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={!isEditable}
+                      value={bankDeposits || ''}
+                      placeholder="₹0.00"
+                      onChange={(e) => setBankDeposits(parseFloat(e.target.value) || 0)}
+                      className="font-bold font-mono text-lg h-12 mt-1.5"
+                    />
+                  </div>
+                  <div className="space-y-1.5 p-4 rounded-xl border border-stone-150 dark:border-stone-900 bg-stone-50/10">
+                    <Label htmlFor="bank_withdrawals" className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bank Withdrawals</Label>
+                    <Input
+                      id="bank_withdrawals"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      disabled={!isEditable}
+                      value={bankWithdrawals || ''}
+                      placeholder="₹0.00"
+                      onChange={(e) => setBankWithdrawals(parseFloat(e.target.value) || 0)}
+                      className="font-bold font-mono text-lg h-12 mt-1.5"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Local Branch Income in same Tab */}
+              <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+                <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Other Income Logs (₹)</CardTitle>
+                    <CardDescription className="text-xs">Record scrap sales, party orders, or miscellaneous income</CardDescription>
+                  </div>
+                  {isEditable && (
+                    <Dialog open={incomeOpen} onOpenChange={setIncomeOpen}>
+                      <DialogTrigger render={
+                        <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
+                          <Plus className="h-4 w-4" /> Add Miscellaneous Income
+                        </Button>
+                      } />
+                      <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
+                        <DialogHeader>
+                          <DialogTitle>Log Local Branch Income</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={incForm.handleSubmit(handleAddIncome)} className="space-y-4 pt-2">
+                          <div>
+                            <Label htmlFor="source" className="text-xs font-semibold">Income Source</Label>
+                            <Input id="source" placeholder="e.g. Scrap carton sales / Party advance" {...incForm.register('source')} className="mt-1.5 h-11" />
+                          </div>
+                          <div>
+                            <Label htmlFor="amount" className="text-xs font-semibold">Value (₹)</Label>
+                            <Input id="amount" type="number" step="0.01" {...incForm.register('amount')} className="mt-1.5 h-11" />
+                          </div>
+                          <div>
+                            <Label htmlFor="payment_method" className="text-xs font-semibold">Payment Channel</Label>
+                            <Select onValueChange={(v) => incForm.setValue('payment_method', v as any)} defaultValue="cash">
+                              <SelectTrigger className="w-full mt-1.5 h-11">
+                                <SelectValue placeholder="Select Payment Channel" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                                <SelectItem value="cash">Cash (Drawer Inflow)</SelectItem>
+                                <SelectItem value="gpay">GPay / UPI</SelectItem>
+                                <SelectItem value="card">Card Swipe</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="description" className="text-xs font-semibold">Description / Remarks</Label>
+                            <Input id="description" placeholder="Optional comments..." {...incForm.register('description')} className="mt-1.5 h-11" />
+                          </div>
+                          <DialogFooter className="pt-2">
+                            <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
+                              Save Income
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
+                      <TableRow className="border-stone-100 dark:border-slate-900">
+                        <TableHead className="pl-6">Source</TableHead>
+                        <TableHead>Remarks</TableHead>
+                        <TableHead>Channel</TableHead>
+                        <TableHead className="text-right">Value</TableHead>
+                        {isEditable && <TableHead className="w-12"></TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {incomeList.length > 0 ? (
+                        incomeList.map((row) => (
+                          <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
+                            <TableCell className="pl-6 font-semibold text-slate-800 dark:text-slate-200">{row.source}</TableCell>
+                            <TableCell className="text-slate-600">{row.description || '-'}</TableCell>
+                            <TableCell className="text-xs uppercase font-semibold text-slate-550">{row.payment_method}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-slate-800">{formatRupee(Number(row.amount))}</TableCell>
+                            {isEditable && (
+                              <TableCell className="pr-6 text-center">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => handleDeleteIncome(row.id)}
+                                  className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={isEditable ? 5 : 4} className="text-center py-12 text-slate-400">
+                            <Info className="h-5 w-5 mx-auto text-stone-300 mb-1.5" />
+                            <p className="text-xs font-medium">No miscellaneous income logs recorded.</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB 5: CASH & DENOMINATIONS */}
+          {activeTab === 'cashbook' && (
+            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
+                <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Denominations Notes Tally</CardTitle>
+                <CardDescription className="text-xs">Quantify physical cash bills to count actual drawer cash</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                {denominationList.map((denom) => (
+                  <div key={denom.field} className="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-stone-50/50">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-350 w-24">
+                      {denom.val === 1 ? 'Coins' : `₹${denom.val} Bill`}
+                    </span>
+                    <span className="text-xs text-slate-400">×</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      disabled={!isEditable}
+                      value={denomCounts[denom.field] || ''}
+                      placeholder="0"
+                      onChange={(e) => handleDenomChange(denom.field, e.target.value)}
+                      className="w-24 text-right font-bold font-mono h-11 text-base focus:ring-primary"
+                    />
+                    <span className="text-base font-bold text-slate-650 dark:text-slate-300 w-32 text-right font-mono">
+                      {formatRupee(denom.val * (denomCounts[denom.field] || 0))}
+                    </span>
+                  </div>
+                ))}
+                <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 flex justify-between items-center bg-primary/5 p-4 rounded-xl border border-primary/10">
+                  <span className="text-sm font-extrabold text-primary uppercase tracking-wide">Physical counted Total</span>
+                  <span className="text-xl font-extrabold font-mono text-primary">{formatRupee(actualCash)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+        </div>
+
+        {/* Right Side: Sticky Summary Audit Panel (Live update) */}
+        <div className="xl:col-span-1">
+          <div className="xl:sticky xl:top-6 self-start space-y-6">
+            
+            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-md rounded-2xl overflow-hidden">
+              <CardHeader className="border-b border-stone-150 dark:border-slate-900 bg-stone-50/80 dark:bg-slate-950/30 py-4">
+                <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                  Reconciliation Summary
+                </CardTitle>
+                <CardDescription className="text-xs">Dynamic audit checks for the register drawer</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                
+                {/* Statistics Lists */}
+                <div className="space-y-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  <div className="flex justify-between items-center">
+                    <span>Opening Cash float</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(Number(daybook.opening_cash))}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Cash Sales (+)</span>
+                    <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashSales)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Other Cash Income (+)</span>
+                    <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashIncome)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Outflow Purchases/Expenses (-)</span>
+                    <span className="font-mono text-rose-600">-{formatRupee(totalCashPurchases + totalCashExpenses)}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-stone-150 dark:border-slate-900 pb-2">
+                    <span>Net safe deposits (-)</span>
+                    <span className="font-mono text-rose-600">-{formatRupee(bankDeposits - bankWithdrawals)}</span>
+                  </div>
+                </div>
+
+                {/* Audit Drawer Check */}
+                <div className="space-y-2.5 pt-2 border-b border-stone-150 dark:border-slate-900 pb-4">
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-650 dark:text-slate-300">
+                    <span>Expected Drawer cash:</span>
+                    <span className="font-mono text-sm">{formatRupee(expectedCash)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-650 dark:text-slate-300">
+                    <span>Physical counted cash:</span>
+                    <span className="font-mono text-sm">{formatRupee(actualCash)}</span>
+                  </div>
+                </div>
+
+                {/* Dynamic Status Variance Badge */}
+                <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
+                  cashDifference === 0 
+                    ? 'bg-emerald-50/40 border-emerald-100 text-emerald-800 dark:bg-emerald-950/10 dark:border-emerald-900/30' 
+                    : Math.abs(cashDifference) <= 200
+                    ? 'bg-amber-50/50 border-amber-250 text-amber-800 dark:bg-amber-950/10 dark:border-amber-900/30'
+                    : 'bg-rose-50/50 border-rose-250 text-rose-800 dark:bg-rose-950/10 dark:border-rose-900/30'
+                }`}>
+                  <div className="flex items-center justify-between font-bold text-sm">
+                    <span>Drawer Variance</span>
+                    <span className="font-mono text-base">
+                      {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
+                    </span>
+                  </div>
+                  <p className="text-[10px] opacity-80 leading-snug">
+                    {cashDifference === 0 
+                      ? 'Reconciled! Physical counted cash matches expected drawer exactly.'
+                      : `Drawer imbalance of ${formatRupee(Math.abs(cashDifference))}. Must justify comment before submission.`
+                    }
+                  </p>
+                </div>
+
+                {/* Variance Comments Field */}
+                {Math.abs(cashDifference) > 0 && (
+                  <div className="space-y-1.5 pt-2">
+                    <Label htmlFor="justification" className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <span>Variance Justification</span>
+                    </Label>
+                    <textarea
+                      id="justification"
+                      rows={3}
+                      disabled={!isEditable}
+                      placeholder="Provide detailed reasons for the register difference..."
+                      value={justification}
+                      onChange={(e) => setJustification(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-400 font-semibold"
+                    />
+                  </div>
+                )}
+
+                {/* KPI Metrics */}
+                <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-500 font-semibold">
+                  <div className="flex justify-between items-center">
+                    <span>Gross Sales Sum</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Total Procurement Value</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
+                  </div>
+                  <div className="flex justify-between items-center font-bold text-slate-700 dark:text-slate-350">
+                    <span>Food Cost percentage</span>
+                    <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(2)}%</span>
+                  </div>
+                </div>
+
+              </CardContent>
+
+              {/* Action Buttons */}
+              {isEditable && (
+                <CardFooter className="pt-2 pb-6 flex flex-col gap-3 border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-4 px-6">
+                  <Button 
+                    onClick={() => handleSaveDraft(false)}
+                    className="w-full border border-stone-250 bg-white hover:bg-stone-50 text-slate-850 font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm dark:bg-stone-900 dark:border-slate-850 dark:text-slate-100 transition-all"
+                  >
+                    <Save className="h-4 w-4" /> Manual Save Draft
+                  </Button>
+                  <Button 
+                    onClick={handleSubmitDaybook}
+                    className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Close & Submit Daybook
+                  </Button>
+                </CardFooter>
+              )}
+            </Card>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default function DaybookPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-primary"></div>
+        <p className="text-sm font-semibold text-slate-500">Loading daily worksheet...</p>
+      </div>
+    }>
+      <DaybookContent />
+    </Suspense>
+  );
+}
