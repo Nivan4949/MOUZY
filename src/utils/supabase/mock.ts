@@ -31,9 +31,27 @@ export function getMockDefaults(table: string): any[] {
       ];
     case 'purchase_heads':
       return [
-        { id: '00000000-0000-0000-0000-000000000210', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Food Ingredients', gl_code: 'PUR-001', is_active: true },
-        { id: '00000000-0000-0000-0000-000000000220', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Dairy & Milk', gl_code: 'PUR-002', is_active: true },
-        { id: '00000000-0000-0000-0000-000000000230', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Beverages', gl_code: 'PUR-003', is_active: true }
+        { id: '00000000-0000-0000-0000-000000000201', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Food Ingredients', gl_code: 'PUR-001', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000202', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Dairy & Milk', gl_code: 'PUR-002', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000203', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Beverages', gl_code: 'PUR-003', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000204', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Packaging & Disposables', gl_code: 'PUR-004', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000205', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Banana', gl_code: 'PUR-005', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000206', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Sugar', gl_code: 'PUR-007', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000207', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Mouzy Distributors', gl_code: 'PUR-008', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000208', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Nuts', gl_code: 'PUR-009', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000209', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Dry Fruits', gl_code: 'PUR-010', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000210', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Toppings / Crushes', gl_code: 'PUR-011', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000211', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Ice Creams', gl_code: 'PUR-012', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000212', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Fruits', gl_code: 'PUR-013', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000213', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Breads', gl_code: 'PUR-014', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000214', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Chicken', gl_code: 'PUR-015', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000215', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Cheesy Items', gl_code: 'PUR-016', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000216', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Shake Pulps', gl_code: 'PUR-017', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000217', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Doodh Malai Items', gl_code: 'PUR-018', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000218', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Falooda Items', gl_code: 'PUR-019', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000219', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Fizz Items', gl_code: 'PUR-020', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000220', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Water', gl_code: 'PUR-021', is_active: true },
+        { id: '00000000-0000-0000-0000-000000000221', tenant_id: '00000000-0000-0000-0000-000000000001', name: 'Avil Local Purchase', gl_code: 'PUR-023', is_active: true }
       ];
     case 'expense_categories':
       return [
@@ -155,6 +173,11 @@ class MockQueryBuilder {
 
   neq(col: string, val: any) {
     this.filters.push((item) => item[col] !== val);
+    return this;
+  }
+
+  in(col: string, vals: any[]) {
+    this.filters.push((item) => vals.includes(item[col]));
     return this;
   }
 
@@ -301,9 +324,16 @@ async function handleMockRPC(fn: string, args: any): Promise<any> {
     const daybooks = JSON.parse(localStorage.getItem(dbKey) || '[]');
     const idx = daybooks.findIndex((d: any) => d.id === args.p_daybook_id);
     if (idx !== -1) {
-      daybooks[idx].status = 'approved';
-      daybooks[idx].approved_by = args.p_user_id;
-      daybooks[idx].closed_at = new Date().toISOString();
+      const currentStatus = daybooks[idx].status;
+      if (currentStatus === 'submitted') {
+        daybooks[idx].status = 'branch_approved';
+      } else if (currentStatus === 'branch_approved') {
+        daybooks[idx].status = 'approved';
+        daybooks[idx].approved_by = args.p_user_id;
+        daybooks[idx].closed_at = new Date().toISOString();
+      } else {
+        return { data: null, error: new Error('Daybook cannot be approved from status: ' + currentStatus) };
+      }
       localStorage.setItem(dbKey, JSON.stringify(daybooks));
       return { data: null, error: null };
     }
@@ -315,10 +345,14 @@ async function handleMockRPC(fn: string, args: any): Promise<any> {
     const daybooks = JSON.parse(localStorage.getItem(dbKey) || '[]');
     const idx = daybooks.findIndex((d: any) => d.id === args.p_daybook_id);
     if (idx !== -1) {
-      daybooks[idx].status = 'rejected';
-      daybooks[idx].variance_justification = (daybooks[idx].variance_justification || '') + `\n[Rejected]: ${args.p_reason}`;
-      localStorage.setItem(dbKey, JSON.stringify(daybooks));
-      return { data: null, error: null };
+      const currentStatus = daybooks[idx].status;
+      if (currentStatus === 'submitted' || currentStatus === 'branch_approved') {
+        daybooks[idx].status = 'rejected';
+        daybooks[idx].variance_justification = (daybooks[idx].variance_justification || '') + `\n[Rejected by ${args.p_user_id}]: ${args.p_reason}`;
+        localStorage.setItem(dbKey, JSON.stringify(daybooks));
+        return { data: null, error: null };
+      }
+      return { data: null, error: new Error('Daybook cannot be rejected from status: ' + currentStatus) };
     }
     return { data: null, error: new Error('Daybook not found') };
   }
@@ -328,9 +362,13 @@ async function handleMockRPC(fn: string, args: any): Promise<any> {
     const daybooks = JSON.parse(localStorage.getItem(dbKey) || '[]');
     const idx = daybooks.findIndex((d: any) => d.id === args.p_daybook_id);
     if (idx !== -1) {
-      daybooks[idx].status = 'draft';
-      localStorage.setItem(dbKey, JSON.stringify(daybooks));
-      return { data: null, error: null };
+      const currentStatus = daybooks[idx].status;
+      if (currentStatus === 'approved' || currentStatus === 'rejected') {
+        daybooks[idx].status = 'draft';
+        localStorage.setItem(dbKey, JSON.stringify(daybooks));
+        return { data: null, error: null };
+      }
+      return { data: null, error: new Error('Daybook cannot be re-opened from status: ' + currentStatus) };
     }
     return { data: null, error: new Error('Daybook not found') };
   }
@@ -419,21 +457,45 @@ export class MockSupabaseClient {
       if (typeof window === 'undefined') return { data: { user: null } };
       const isLoggedIn = localStorage.getItem('sb-mock-logged-in');
       if (isLoggedIn) {
-        return { data: { user: MOCK_USER } };
+        const role = localStorage.getItem('sb-mock-role') || 'super_admin';
+        const email = localStorage.getItem('sb-mock-email') || 'manager.402@mouzyerp.com';
+        return { data: { user: { 
+          ...MOCK_USER, 
+          email, 
+          user_metadata: { ...MOCK_USER.user_metadata, app_role: role } 
+        } } };
       }
       return { data: { user: null } };
     },
     signInWithPassword: async ({ email }: any) => {
       if (typeof window !== 'undefined') {
         localStorage.setItem('sb-mock-logged-in', 'true');
+        localStorage.setItem('sb-mock-email', email);
+        let role = 'super_admin';
+        const lowerEmail = email.toLowerCase();
+        if (lowerEmail.includes('cashier')) {
+          role = 'cashier';
+        } else if (lowerEmail.includes('manager')) {
+          role = 'branch_manager';
+        } else if (lowerEmail.includes('finance') || lowerEmail.includes('accountant')) {
+          role = 'finance_head';
+        }
+        localStorage.setItem('sb-mock-role', role);
         document.cookie = `sb-mock-session=true; path=/; max-age=36000`;
+        document.cookie = `sb-mock-role=${role}; path=/; max-age=36000`;
+        document.cookie = `sb-mock-email=${email}; path=/; max-age=36000`;
       }
-      return { data: { user: { ...MOCK_USER, email } }, error: null };
+      const role = typeof window !== 'undefined' ? (localStorage.getItem('sb-mock-role') || 'super_admin') : 'super_admin';
+      return { data: { user: { ...MOCK_USER, email, user_metadata: { ...MOCK_USER.user_metadata, app_role: role } } }, error: null };
     },
     signOut: async () => {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('sb-mock-logged-in');
+        localStorage.removeItem('sb-mock-role');
+        localStorage.removeItem('sb-mock-email');
         document.cookie = `sb-mock-session=; path=/; max-age=0`;
+        document.cookie = `sb-mock-role=; path=/; max-age=0`;
+        document.cookie = `sb-mock-email=; path=/; max-age=0`;
       }
       return { error: null };
     }

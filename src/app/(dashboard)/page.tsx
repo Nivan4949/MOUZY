@@ -31,6 +31,11 @@ interface DashboardStats {
   cashVariance: number;
   vendorOutstanding: number;
   bankBalance: number;
+  todayNetSales: number;
+  monthlyNetSales: number;
+  monthlyPurchases: number;
+  todayFoodCost: number;
+  monthlyFoodCost: number;
 }
 
 export default function DashboardPage() {
@@ -44,6 +49,11 @@ export default function DashboardPage() {
     cashVariance: 0,
     vendorOutstanding: 0,
     bankBalance: 0,
+    todayNetSales: 0,
+    monthlyNetSales: 0,
+    monthlyPurchases: 0,
+    todayFoodCost: 0,
+    monthlyFoodCost: 0,
   });
   const [salesTrend, setSalesTrend] = useState<{ date: string; sales: number }[]>([]);
   const [topBranches, setTopBranches] = useState<{ name: string; sales: number }[]>([]);
@@ -70,16 +80,19 @@ export default function DashboardPage() {
           .gte('transaction_timestamp', todayStr);
         
         const todaySalesSum = todaySalesData?.reduce((acc: number, row: any) => acc + Number(row.amount_net), 0) || 0;
+        const todayNetSales = (todaySalesSum * 100) / 105;
 
         // 2. Fetch Monthly Sales
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
+        const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
         const { data: monthlySalesData } = await supabase
           .from('sales_transactions')
           .select('amount_net')
-          .gte('transaction_timestamp', startOfMonth.toISOString().split('T')[0]);
+          .gte('transaction_timestamp', startOfMonthStr);
 
         const monthlySalesSum = monthlySalesData?.reduce((acc: number, row: any) => acc + Number(row.amount_net), 0) || 0;
+        const monthlyNetSales = (monthlySalesSum * 100) / 105;
 
         // 3. Fetch Today's Expenses
         const { data: expensesData } = await supabase
@@ -97,6 +110,17 @@ export default function DashboardPage() {
           .gte('created_at', todayStr);
 
         const todayPurchasesSum = purchasesData?.reduce((acc: number, row: any) => acc + Number(row.amount), 0) || 0;
+
+        // Fetch Monthly Purchases
+        const { data: monthlyPurchasesData } = await supabase
+          .from('purchases')
+          .select('amount')
+          .gte('invoice_date', startOfMonthStr);
+
+        const monthlyPurchasesSum = monthlyPurchasesData?.reduce((acc: number, row: any) => acc + Number(row.amount), 0) || 0;
+
+        const todayFoodCost = todayNetSales > 0 ? (todayPurchasesSum / todayNetSales) * 100 : 0;
+        const monthlyFoodCost = monthlyNetSales > 0 ? (monthlyPurchasesSum / monthlyNetSales) * 100 : 0;
 
         // 5. Fetch Active Daybook Cash Variance
         const { data: daybookData } = await supabase
@@ -131,6 +155,11 @@ export default function DashboardPage() {
           cashVariance: currentVariance,
           vendorOutstanding: totalOutstanding,
           bankBalance: bankBalanceValue,
+          todayNetSales,
+          monthlyNetSales,
+          monthlyPurchases: monthlyPurchasesSum,
+          todayFoodCost,
+          monthlyFoodCost,
         });
 
         // 8. Fetch 7-day Sales Chart Data
@@ -197,78 +226,134 @@ export default function DashboardPage() {
           Performance Dashboard
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Real-time branch financial metrics and daybook cash reconciliations.
+          Real-time branch financial metrics, food costs, and daybook cash reconciliations.
         </p>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Today's Sales */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Today's Net Sales
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">{formatRupee(stats.todaySales)}</div>
-            <p className="text-xs text-primary mt-1 flex items-center gap-1">
-              <Activity className="h-3 w-3" />
-              <span>Real-time from Daybook splits</span>
-            </p>
-          </CardContent>
-        </Card>
+      {/* CORE OPERATIONAL METRICS */}
+      <div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Core Store Operations</h2>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Today's Net Sales */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Today's Net Sales
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">{formatRupee(stats.todayNetSales)}</div>
+              <p className="text-xs text-slate-500 mt-1">
+                Gross sales: {formatRupee(stats.todaySales)}
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Expenses Today */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Approved Expenses (Today)
-            </CardTitle>
-            <TrendingDown className="h-4 w-4 text-rose-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">{formatRupee(stats.todayExpenses)}</div>
-            <p className="text-xs text-slate-500 mt-1">Petty cash payouts</p>
-          </CardContent>
-        </Card>
+          {/* Monthly Net Sales */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Monthly Net Sales
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">{formatRupee(stats.monthlyNetSales)}</div>
+              <p className="text-xs text-slate-500 mt-1">
+                Gross sales: {formatRupee(stats.monthlySales)}
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Cash Variance */}
-        <Card className={`border bg-white dark:bg-slate-950 shadow-sm rounded-2xl ${
-          stats.cashVariance !== 0 
-            ? 'border-rose-350 dark:border-rose-900 bg-rose-50/10' 
-            : 'border-stone-200 dark:border-slate-800'
-        }`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Drawer Cash Variance
-            </CardTitle>
-            <AlertTriangle className={`h-4 w-4 ${stats.cashVariance !== 0 ? 'text-rose-500' : 'text-slate-400'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold font-mono ${stats.cashVariance !== 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
-              {stats.cashVariance > 0 ? `+${formatRupee(stats.cashVariance)}` : formatRupee(stats.cashVariance)}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {stats.cashVariance === 0 ? 'Balanced drawer' : stats.cashVariance < 0 ? 'Cash shortage alert' : 'Cash overage'}
-            </p>
-          </CardContent>
-        </Card>
+          {/* Today's Food Cost % */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Today's Food Cost %
+              </CardTitle>
+              <Activity className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono text-primary">{stats.todayFoodCost.toFixed(2)}%</div>
+              <p className="text-xs text-slate-500 mt-1">
+                Procurements: {formatRupee(stats.todayPurchases)}
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Vendor Outstanding */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              AP Vendor Outstanding
-            </CardTitle>
-            <Layers className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">{formatRupee(stats.vendorOutstanding)}</div>
-            <p className="text-xs text-slate-500 mt-1">Outstanding liability invoices</p>
-          </CardContent>
-        </Card>
+          {/* Monthly Food Cost % */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Monthly Food Cost %
+              </CardTitle>
+              <Activity className="h-4 w-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono text-emerald-600">{stats.monthlyFoodCost.toFixed(2)}%</div>
+              <p className="text-xs text-slate-500 mt-1">
+                Procurements: {formatRupee(stats.monthlyPurchases)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* CASHFLOW & RECONCILIATION */}
+      <div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Cashbook & Balances</h2>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Expenses Today */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Approved Expenses (Today)
+              </CardTitle>
+              <TrendingDown className="h-4 w-4 text-rose-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">{formatRupee(stats.todayExpenses)}</div>
+              <p className="text-xs text-slate-500 mt-1">Petty cash payouts</p>
+            </CardContent>
+          </Card>
+
+          {/* Cash Variance */}
+          <Card className={`border bg-white dark:bg-slate-950 shadow-sm rounded-2xl ${
+            stats.cashVariance !== 0 
+              ? 'border-rose-300 dark:border-rose-900 bg-rose-50/10' 
+              : 'border-stone-200 dark:border-slate-800'
+          }`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Drawer Cash Variance
+              </CardTitle>
+              <AlertTriangle className={`h-4 w-4 ${stats.cashVariance !== 0 ? 'text-rose-500' : 'text-slate-400'}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold font-mono ${stats.cashVariance !== 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+                {stats.cashVariance > 0 ? `+${formatRupee(stats.cashVariance)}` : formatRupee(stats.cashVariance)}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {stats.cashVariance === 0 ? 'Balanced drawer' : stats.cashVariance < 0 ? 'Cash shortage alert' : 'Cash overage'}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Vendor Outstanding */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                AP Vendor Outstanding
+              </CardTitle>
+              <Layers className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">{formatRupee(stats.vendorOutstanding)}</div>
+              <p className="text-xs text-slate-500 mt-1">Outstanding liabilities</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Main Charts & Tables Section */}

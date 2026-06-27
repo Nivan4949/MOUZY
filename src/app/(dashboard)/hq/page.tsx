@@ -46,6 +46,9 @@ export default function HQApprovalsPage() {
   const [rejectingDbId, setRejectingDbId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [newPeriodOpen, setNewPeriodOpen] = useState(false);
+  
+  // Custom states for active user permissions
+  const [userRole, setUserRole] = useState<string>('finance_head');
 
   const periodForm = useForm<PeriodFormValues>({
     resolver: zodResolver(periodSchema) as any,
@@ -69,7 +72,7 @@ export default function HQApprovalsPage() {
     const { data } = await supabase
       .from('daybooks')
       .select('*')
-      .eq('status', 'submitted')
+      .in('status', ['submitted', 'branch_approved'])
       .order('business_date', { ascending: false });
     setDaybooks(data || []);
   }
@@ -104,6 +107,33 @@ export default function HQApprovalsPage() {
   }
 
   useEffect(() => {
+    async function getUserRoleData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role_id')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile?.role_id) {
+          const { data: roleObj } = await supabase
+            .from('roles')
+            .select('role_name')
+            .eq('id', profile.role_id)
+            .maybeSingle();
+          if (roleObj?.role_name) {
+            setUserRole(roleObj.role_name);
+          }
+        } else {
+          const mockRole = user.user_metadata?.app_role;
+          if (mockRole) {
+            setUserRole(mockRole);
+          }
+        }
+      }
+    }
+    getUserRoleData();
     refreshAll();
   }, [supabase]);
 
@@ -248,6 +278,7 @@ export default function HQApprovalsPage() {
                   <TableRow className="border-slate-200 dark:border-slate-800">
                     <TableHead>Date</TableHead>
                     <TableHead>Branch</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Float Open</TableHead>
                     <TableHead className="text-right">Expected Drawer</TableHead>
                     <TableHead className="text-right">Physical Counted</TableHead>
@@ -261,6 +292,17 @@ export default function HQApprovalsPage() {
                     daybooks.map((db) => {
                       const branchName = branches.find(b => b.id === db.branch_id)?.name || 'Unknown Branch';
                       const variance = Number(db.cash_difference);
+
+                      // Role-gating controls
+                      const canApprove = 
+                        (db.status === 'submitted' && (userRole === 'branch_manager' || userRole === 'super_admin')) ||
+                        (db.status === 'branch_approved' && (userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin'));
+
+                      const statusLabel = db.status === 'submitted' ? 'Awaiting Mgr' : 'Awaiting Finance';
+                      const statusColor = db.status === 'submitted' 
+                        ? 'bg-amber-50 border-amber-250 text-amber-800 dark:bg-amber-950/20' 
+                        : 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/20';
+
                       return (
                         <TableRow key={db.id} className="border-slate-100 dark:border-slate-900">
                           <TableCell className="font-semibold text-slate-700 dark:text-slate-350">
@@ -269,6 +311,11 @@ export default function HQApprovalsPage() {
                           <TableCell className="font-medium text-slate-900 dark:text-white flex items-center gap-1.5 py-4">
                             <Building2 className="h-4 w-4 text-slate-400" />
                             <span>{branchName}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${statusColor}`}>
+                              {statusLabel}
+                            </span>
                           </TableCell>
                           <TableCell className="text-right font-mono font-medium">{formatRupee(Number(db.opening_cash))}</TableCell>
                           <TableCell className="text-right font-mono font-medium">{formatRupee(Number(db.expected_cash))}</TableCell>
@@ -280,31 +327,39 @@ export default function HQApprovalsPage() {
                             {db.variance_justification || '-'}
                           </TableCell>
                           <TableCell className="text-right space-x-2 py-4 shrink-0">
-                            <Button 
-                              onClick={() => handleApproveDaybook(db.id)}
-                              size="sm" 
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-2.5"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
-                            </Button>
-                            <Button 
-                              onClick={() => {
-                                setRejectingDbId(db.id);
-                                setRejectOpen(true);
-                              }}
-                              variant="outline"
-                              size="sm" 
-                              className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-500 text-xs h-8 px-2.5"
-                            >
-                              <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
-                            </Button>
+                            {canApprove ? (
+                              <>
+                                <Button 
+                                  onClick={() => handleApproveDaybook(db.id)}
+                                  size="sm" 
+                                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-2.5"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {db.status === 'submitted' ? 'Approve' : 'Lock'}
+                                </Button>
+                                <Button 
+                                  onClick={() => {
+                                    setRejectingDbId(db.id);
+                                    setRejectOpen(true);
+                                  }}
+                                  variant="outline"
+                                  size="sm" 
+                                  className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-500 text-xs h-8 px-2.5"
+                                >
+                                  <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                                </Button>
+                              </>
+                            ) : (
+                              <div className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 border border-stone-250 rounded-lg px-2.5 py-1 dark:bg-slate-900 dark:border-slate-800">
+                                <Lock className="h-3 w-3" /> Locked
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-xs text-slate-400">No daybook sheets awaiting HQ review.</TableCell>
+                      <TableCell colSpan={9} className="text-center py-8 text-xs text-slate-400">No daybook sheets awaiting HQ review.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

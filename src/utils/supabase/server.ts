@@ -3,13 +3,31 @@ import { cookies } from 'next/headers';
 
 class MockServerSupabaseClient {
   cookieVal: string | undefined;
-  constructor(cookieVal: string | undefined) {
+  roleVal: string | undefined;
+  emailVal: string | undefined;
+  constructor(cookieVal: string | undefined, roleVal: string | undefined, emailVal: string | undefined) {
     this.cookieVal = cookieVal;
+    this.roleVal = roleVal;
+    this.emailVal = emailVal;
   }
   auth = {
     getUser: async () => {
       if (this.cookieVal === 'true') {
-        return { data: { user: { id: '00000000-0000-0000-0000-000000000099', email: 'manager.402@mouzyerp.com' } } };
+        const role = this.roleVal || 'super_admin';
+        const email = this.emailVal || 'manager.402@mouzyerp.com';
+        return { 
+          data: { 
+            user: { 
+              id: '00000000-0000-0000-0000-000000000099', 
+              email: email,
+              user_metadata: {
+                tenant_id: '00000000-0000-0000-0000-000000000001',
+                branch_id: '00000000-0000-0000-0000-000000000010',
+                app_role: role
+              }
+            } 
+          } 
+        };
       }
       return { data: { user: null } };
     }
@@ -22,7 +40,9 @@ export async function createClient() {
 
   if (!url || url.includes('placeholder')) {
     const mockSession = cookieStore.get('sb-mock-session')?.value;
-    return new MockServerSupabaseClient(mockSession) as any;
+    const mockRole = cookieStore.get('sb-mock-role')?.value;
+    const mockEmail = cookieStore.get('sb-mock-email')?.value;
+    return new MockServerSupabaseClient(mockSession, mockRole, mockEmail) as any;
   }
 
   return createServerClient(

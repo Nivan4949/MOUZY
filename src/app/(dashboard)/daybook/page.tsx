@@ -28,7 +28,11 @@ import {
   Receipt,
   ShoppingBag,
   Info,
-  ClipboardList
+  ClipboardList,
+  Lock,
+  Unlock,
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 
 // Form Validation Schemas
@@ -105,7 +109,7 @@ function DaybookContent() {
 
   // Sales Splits State
   const [salesSplits, setSalesSplits] = useState({
-    cash: 0,
+    systemSales: 0,
     gpay: 0,
     card: 0,
     swiggy: 0,
@@ -121,6 +125,9 @@ function DaybookContent() {
     denom_50: 0,
     denom_20: 0,
     denom_10: 0,
+    denom_5: 0,
+    denom_2: 0,
+    denom_1: 0,
     denom_coins: 0,
   });
 
@@ -129,6 +136,15 @@ function DaybookContent() {
   const [bankDeposits, setBankDeposits] = useState(0);
   const [bankWithdrawals, setBankWithdrawals] = useState(0);
   const [justification, setJustification] = useState('');
+  
+  // Custom states for monthly cost percentage analysis & workflow role
+  const [monthlyPurchases, setMonthlyPurchases] = useState<any[]>([]);
+  const [monthlySalesTotal, setMonthlySalesTotal] = useState<number>(0);
+  const [userRole, setUserRole] = useState<string>('cashier');
+  
+  // Rejection reason popups
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Form Handlers
   const openForm = useForm<OpenDaybookForm>({ resolver: zodResolver(openDaybookSchema) as any });
@@ -143,7 +159,10 @@ function DaybookContent() {
     { val: 50, label: '₹50 Note', field: 'denom_50' },
     { val: 20, label: '₹20 Note', field: 'denom_20' },
     { val: 10, label: '₹10 Note', field: 'denom_10' },
-    { val: 1, label: 'Coins', field: 'denom_coins' },
+    { val: 5, label: '₹5 Bill/Coin', field: 'denom_5' },
+    { val: 2, label: '₹2 Bill/Coin', field: 'denom_2' },
+    { val: 1, label: '₹1 Bill/Coin', field: 'denom_1' },
+    { val: 1, label: 'Other Coins', field: 'denom_coins' },
   ];
 
   const formatRupee = (value: number) => {
@@ -166,6 +185,33 @@ function DaybookContent() {
         .eq('business_date', todayString)
         .maybeSingle();
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Query user's role for workflow options
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('role_id')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (userProfile?.role_id) {
+          const { data: roleObj } = await supabase
+            .from('roles')
+            .select('role_name')
+            .eq('id', userProfile.role_id)
+            .maybeSingle();
+          
+          if (roleObj?.role_name) {
+            setUserRole(roleObj.role_name);
+          }
+        } else {
+          const mockRole = user.user_metadata?.app_role;
+          if (mockRole) {
+            setUserRole(mockRole);
+          }
+        }
+      }
+
       if (db) {
         setDaybook(db);
         setJustification(db.variance_justification || '');
@@ -183,13 +229,20 @@ function DaybookContent() {
         setIncomeList(inc || []);
         setSalesTransactions(sales || []);
 
+        const cashAmt = Number(db.sales_cash) || 0;
+        const gpayAmt = Number(db.sales_gpay) || 0;
+        const cardAmt = Number(db.sales_card) || 0;
+        const swiggyAmt = Number(db.sales_swiggy) || 0;
+        const zomatoAmt = Number(db.sales_zomato) || 0;
+        const onlineAmt = Number(db.sales_online) || 0;
+
         setSalesSplits({
-          cash: Number(db.sales_cash) || 0,
-          gpay: Number(db.sales_gpay) || 0,
-          card: Number(db.sales_card) || 0,
-          swiggy: Number(db.sales_swiggy) || 0,
-          zomato: Number(db.sales_zomato) || 0,
-          online: Number(db.sales_online) || 0,
+          systemSales: cashAmt + gpayAmt + cardAmt + swiggyAmt + zomatoAmt + onlineAmt,
+          gpay: gpayAmt,
+          card: cardAmt,
+          swiggy: swiggyAmt,
+          zomato: zomatoAmt,
+          online: onlineAmt,
         });
 
         setDenomCounts({
@@ -199,8 +252,30 @@ function DaybookContent() {
           denom_50: db.denom_50 || 0,
           denom_20: db.denom_20 || 0,
           denom_10: db.denom_10 || 0,
+          denom_5: db.denom_5 || 0,
+          denom_2: db.denom_2 || 0,
+          denom_1: db.denom_1 || 0,
           denom_coins: db.denom_coins || 0,
         });
+
+        // Load monthly costs to compute Purchase % comparison
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+        
+        const { data: mPurchases } = await supabase
+          .from('purchases')
+          .select('amount, purchase_head_id')
+          .gte('invoice_date', startOfMonthStr);
+
+        const { data: mSales } = await supabase
+          .from('sales_transactions')
+          .select('amount_net')
+          .gte('transaction_timestamp', startOfMonthStr);
+
+        setMonthlyPurchases(mPurchases || []);
+        setMonthlySalesTotal(mSales?.reduce((acc: number, r: any) => acc + Number(r.amount_net), 0) || 0);
+
       } else {
         setDaybook(null);
       }
@@ -228,11 +303,14 @@ function DaybookContent() {
   // Calculations
   const isEditable = daybook && (daybook.status === 'draft' || daybook.status === 'rejected');
 
-  const totalSalesSplits = Object.values(salesSplits).reduce((a: number, b: number) => a + b, 0);
-  const totalPurchasesValue = purchases.reduce((acc: number, row: any) => acc + Number(row.amount), 0);
-  const foodCostPercent = totalSalesSplits > 0 ? (totalPurchasesValue / totalSalesSplits) * 100 : 0;
+  const calculatedCash = salesSplits.systemSales - (salesSplits.gpay + salesSplits.card + salesSplits.swiggy + salesSplits.zomato + salesSplits.online);
+  const totalSalesSplits = salesSplits.systemSales;
+  const netSales = (totalSalesSplits * 100) / 105;
 
-  const totalCashSales = salesSplits.cash;
+  const totalPurchasesValue = purchases.reduce((acc: number, row: any) => acc + Number(row.amount), 0);
+  const foodCostPercent = netSales > 0 ? (totalPurchasesValue / netSales) * 100 : 0;
+
+  const totalCashSales = calculatedCash;
   const totalCashExpenses = expenses.filter((e: any) => e.payment_mode === 'cash' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0);
   const totalCashPurchases = purchases.filter((p: any) => p.payment_mode === 'cash').reduce((a: number, b: any) => a + Number(b.amount), 0);
   const totalCashIncome = incomeList.filter((i: any) => i.payment_method === 'cash').reduce((a: number, b: any) => a + Number(b.amount), 0);
@@ -243,6 +321,7 @@ function DaybookContent() {
 
   const actualCash = denominationList.reduce((acc: number, row: any) => acc + (row.val * (denomCounts[row.field] || 0)), 0);
   const cashDifference = actualCash - expectedCash;
+  const isSalesInvalid = calculatedCash < 0;
 
   // Background Auto-Save
   useEffect(() => {
@@ -293,14 +372,27 @@ function DaybookContent() {
 
   const handleSaveDraft = async (silent = false) => {
     if (!daybook) return;
+    if (isSalesInvalid) {
+      if (!silent) alert('Cannot save: Cash sales calculation is negative. Adjust splits.');
+      return;
+    }
     try {
       if (!silent) setLoading(true);
       else setSavingDraft(true);
       setErrorMsg(null);
       if (!silent) setSuccessMsg(null);
 
-      // Save sales splits
-      for (const [method, amount] of Object.entries(salesSplits)) {
+      // Save sales splits including calculated cash
+      const splitsToSave = {
+        cash: calculatedCash,
+        gpay: salesSplits.gpay,
+        card: salesSplits.card,
+        swiggy: salesSplits.swiggy,
+        zomato: salesSplits.zomato,
+        online: salesSplits.online,
+      };
+
+      for (const [method, amount] of Object.entries(splitsToSave)) {
         const invoiceNo = `DAILY_SUM_${method.toUpperCase()}_${daybook.id}`;
         const existingTx = salesTransactions.find(tx => tx.payment_method === method);
 
@@ -331,7 +423,7 @@ function DaybookContent() {
         }
       }
 
-      // Update daybook details
+      // Update daybook details with extended denominations
       const { error } = await supabase
         .from('daybooks')
         .update({
@@ -344,6 +436,9 @@ function DaybookContent() {
           denom_50: denomCounts.denom_50,
           denom_20: denomCounts.denom_20,
           denom_10: denomCounts.denom_10,
+          denom_5: denomCounts.denom_5,
+          denom_2: denomCounts.denom_2,
+          denom_1: denomCounts.denom_1,
           denom_coins: denomCounts.denom_coins,
           variance_justification: justification || null,
         })
@@ -355,7 +450,6 @@ function DaybookContent() {
         setSuccessMsg('Daybook draft saved successfully.');
         await loadActiveDaybook();
       } else {
-        // Quietly update salesTransactions list in state
         const { data: sales } = await supabase.from('sales_transactions').select('*').eq('daybook_id', daybook.id);
         setSalesTransactions(sales || []);
       }
@@ -364,6 +458,76 @@ function DaybookContent() {
     } finally {
       if (!silent) setLoading(false);
       else setSavingDraft(false);
+    }
+  };
+
+  const handleApproveWorkflow = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.rpc('approve_daybook', {
+        p_daybook_id: daybook.id,
+        p_user_id: user.id
+      });
+      if (error) throw error;
+      setSuccessMsg('Daybook approval phase processed.');
+      await loadActiveDaybook();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Workflow approval failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectWorkflow = async () => {
+    if (!rejectionReason.trim()) {
+      alert('A comment justification is mandatory when rejecting sheets.');
+      return;
+    }
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.rpc('reject_daybook', {
+        p_daybook_id: daybook.id,
+        p_user_id: user.id,
+        p_reason: rejectionReason
+      });
+      if (error) throw error;
+      setRejectOpen(false);
+      setRejectionReason('');
+      setSuccessMsg('Daybook sheet rejected back to draft.');
+      await loadActiveDaybook();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Rejection failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReopenWorkflow = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const { error } = await supabase.rpc('reopen_daybook', {
+        p_daybook_id: daybook.id
+      });
+      if (error) throw error;
+      setSuccessMsg('Daybook unlocked and reopened for correction.');
+      await loadActiveDaybook();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Reopen failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -705,16 +869,16 @@ function DaybookContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Sales Splits (₹)</CardTitle>
-                    <CardDescription className="text-xs">Record net sales across payment channels</CardDescription>
+                    <CardDescription className="text-xs">Record POS System sales and payment splits. Cash sales are auto-calculated.</CardDescription>
                   </div>
                   <div className="text-lg font-bold font-mono text-primary">
-                    Total: {formatRupee(totalSalesSplits)}
+                    POS Sales Total: {formatRupee(totalSalesSplits)}
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
                 {[
-                  { key: 'cash', label: 'Cash Sales', icon: Wallet, color: 'text-emerald-500' },
+                  { key: 'systemSales', label: 'POS System Sales (Gross)', icon: ClipboardList, color: 'text-primary' },
                   { key: 'gpay', label: 'GPay/UPI', icon: CreditCard, color: 'text-indigo-500' },
                   { key: 'card', label: 'Card Swipe', icon: CreditCard, color: 'text-blue-500' },
                   { key: 'swiggy', label: 'Swiggy', icon: TrendingUp, color: 'text-orange-500' },
@@ -738,140 +902,209 @@ function DaybookContent() {
                     />
                   </div>
                 ))}
+
+                {/* Auto Calculated Cash Sales */}
+                <div className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10 col-span-1 sm:col-span-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    <Wallet className="h-4 w-4 text-emerald-500" />
+                    <span>Calculated Cash Sales (Auto)</span>
+                  </div>
+                  <div className={`font-bold font-mono text-xl h-12 flex items-center px-3 rounded-lg border bg-stone-100/50 text-slate-850 dark:text-slate-100 ${isSalesInvalid ? 'border-rose-300 text-rose-600 bg-rose-50/20' : 'border-stone-200'}`}>
+                    {formatRupee(calculatedCash)}
+                  </div>
+                  {isSalesInvalid && (
+                    <p className="text-xs text-rose-500 font-semibold mt-1 flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <span>Warning: GPay, Card, Swiggy, Zomato, and Online splits exceed System Sales. Cash sales cannot be negative.</span>
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* TAB 2: PURCHASES */}
-          {activeTab === 'purchases' && (
-            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
-              <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Purchases Log (₹)</CardTitle>
-                  <CardDescription className="text-xs">Record local procurements (Cash, Bank or credit accounts)</CardDescription>
-                </div>
-                {isEditable && (
-                  <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
-                    <DialogTrigger render={
-                      <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
-                        <Plus className="h-4 w-4" /> Add Purchase Invoice
-                      </Button>
-                    } />
-                    <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
-                      <DialogHeader>
-                        <DialogTitle>Add Purchase Entry</DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={purForm.handleSubmit(handleAddPurchase)} className="space-y-4 pt-2">
-                        <div>
-                          <Label htmlFor="vendor_id" className="text-xs font-semibold">Vendor / Supplier</Label>
-                          <Select onValueChange={(v: any) => purForm.setValue('vendor_id', v)}>
-                            <SelectTrigger className="w-full mt-1.5 h-11">
-                              <SelectValue placeholder="Select supplier" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
-                              {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="purchase_head_id" className="text-xs font-semibold">GL Account Classification</Label>
-                          <Select onValueChange={(v: any) => purForm.setValue('purchase_head_id', v)}>
-                            <SelectTrigger className="w-full mt-1.5 h-11">
-                              <SelectValue placeholder="Select GL Head" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
-                              {heads.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+               {activeTab === 'purchases' && (
+            <div className="space-y-6">
+              <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+                <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Purchases Log (₹)</CardTitle>
+                    <CardDescription className="text-xs">Record local procurements (Cash, Bank or credit accounts)</CardDescription>
+                  </div>
+                  {isEditable && (
+                    <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
+                      <DialogTrigger render={
+                        <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
+                          <Plus className="h-4 w-4" /> Add Purchase Invoice
+                        </Button>
+                      } />
+                      <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
+                        <DialogHeader>
+                          <DialogTitle>Add Purchase Entry</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={purForm.handleSubmit(handleAddPurchase)} className="space-y-4 pt-2">
                           <div>
-                            <Label htmlFor="invoice_number" className="text-xs font-semibold">Invoice Number</Label>
-                            <Input id="invoice_number" {...purForm.register('invoice_number')} className="mt-1.5 h-11" />
+                            <Label htmlFor="vendor_id" className="text-xs font-semibold">Vendor / Supplier</Label>
+                            <Select onValueChange={(v: any) => purForm.setValue('vendor_id', v)}>
+                              <SelectTrigger className="w-full mt-1.5 h-11">
+                                <SelectValue placeholder="Select supplier" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                                {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div>
-                            <Label htmlFor="amount" className="text-xs font-semibold">Gross Amount (₹)</Label>
-                            <Input id="amount" type="number" step="0.01" {...purForm.register('amount')} className="mt-1.5 h-11" />
+                            <Label htmlFor="purchase_head_id" className="text-xs font-semibold">GL Account Classification</Label>
+                            <Select onValueChange={(v: any) => purForm.setValue('purchase_head_id', v)}>
+                              <SelectTrigger className="w-full mt-1.5 h-11">
+                                <SelectValue placeholder="Select GL Head" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                                {heads.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="payment_mode" className="text-xs font-semibold">Payment Mode</Label>
-                          <Select onValueChange={(v) => purForm.setValue('payment_mode', v as any)} defaultValue="cash">
-                            <SelectTrigger className="w-full mt-1.5 h-11">
-                              <SelectValue placeholder="Payment Mode" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
-                              <SelectItem value="cash">Cash (Drawer Outflow)</SelectItem>
-                              <SelectItem value="bank">Bank Swipe / UPI</SelectItem>
-                              <SelectItem value="credit">Credit (On Accounts AP)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <DialogFooter className="pt-2">
-                          <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
-                            Save Purchase
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
-                    <TableRow className="border-stone-100 dark:border-slate-900">
-                      <TableHead className="pl-6">Invoice</TableHead>
-                      <TableHead>Vendor</TableHead>
-                      <TableHead>Classification</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead className="text-right">Value</TableHead>
-                      {isEditable && <TableHead className="w-12"></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {purchases.length > 0 ? (
-                      purchases.map((row) => (
-                        <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
-                          <TableCell className="pl-6 font-semibold text-slate-800 dark:text-slate-200">{row.invoice_number}</TableCell>
-                          <TableCell className="text-slate-600">{vendors.find(v => v.id === row.vendor_id)?.name || 'Unknown Vendor'}</TableCell>
-                          <TableCell className="text-slate-500">{heads.find(h => h.id === row.purchase_head_id)?.name || 'Purchases'}</TableCell>
-                          <TableCell>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${
-                              row.payment_mode === 'credit'
-                                ? 'bg-amber-50 border-amber-200 text-amber-700'
-                                : 'bg-slate-50 border-stone-200 text-slate-650'
-                            }`}>
-                              {row.payment_mode}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-bold text-slate-800">{formatRupee(Number(row.amount))}</TableCell>
-                          {isEditable && (
-                            <TableCell className="pr-6 text-center">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDeletePurchase(row.id)}
-                                className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={isEditable ? 6 : 5} className="text-center py-12 text-slate-400">
-                          <Info className="h-5 w-5 mx-auto text-stone-300 mb-1.5" />
-                          <p className="text-xs font-medium">No purchases logged today.</p>
-                        </TableCell>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="invoice_number" className="text-xs font-semibold">Invoice Number</Label>
+                              <Input id="invoice_number" {...purForm.register('invoice_number')} className="mt-1.5 h-11" />
+                            </div>
+                            <div>
+                              <Label htmlFor="amount" className="text-xs font-semibold">Gross Amount (₹)</Label>
+                              <Input id="amount" type="number" step="0.01" {...purForm.register('amount')} className="mt-1.5 h-11" />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="payment_mode" className="text-xs font-semibold">Payment Mode</Label>
+                            <Select onValueChange={(v) => purForm.setValue('payment_mode', v as any)} defaultValue="cash">
+                              <SelectTrigger className="w-full mt-1.5 h-11">
+                                <SelectValue placeholder="Payment Mode" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
+                                <SelectItem value="cash">Cash (Drawer Outflow)</SelectItem>
+                                <SelectItem value="bank">Bank Swipe / UPI</SelectItem>
+                                <SelectItem value="credit">Credit (On Accounts AP)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <DialogFooter className="pt-2">
+                            <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
+                              Save Purchase
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
+                      <TableRow className="border-stone-100 dark:border-slate-900">
+                        <TableHead className="pl-6">Invoice</TableHead>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead>Classification</TableHead>
+                        <TableHead>Mode</TableHead>
+                        <TableHead className="text-right">Value</TableHead>
+                        {isEditable && <TableHead className="w-12"></TableHead>}
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {purchases.length > 0 ? (
+                        purchases.map((row) => (
+                          <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
+                            <TableCell className="pl-6 font-semibold text-slate-800 dark:text-slate-200">{row.invoice_number}</TableCell>
+                            <TableCell className="text-slate-650">{vendors.find(v => v.id === row.vendor_id)?.name || 'Unknown Vendor'}</TableCell>
+                            <TableCell className="text-slate-500">{heads.find(h => h.id === row.purchase_head_id)?.name || 'Purchases'}</TableCell>
+                            <TableCell>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${
+                                row.payment_mode === 'credit'
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-slate-50 border-stone-200 text-slate-650'
+                              }`}>
+                                {row.payment_mode}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-bold text-slate-800">{formatRupee(Number(row.amount))}</TableCell>
+                            {isEditable && (
+                              <TableCell className="pr-6 text-center">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => handleDeletePurchase(row.id)}
+                                  className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={isEditable ? 6 : 5} className="text-center py-12 text-slate-400">
+                            <Info className="h-5 w-5 mx-auto text-stone-300 mb-1.5" />
+                            <p className="text-xs font-medium">No purchases logged today.</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Purchase % Analysis Card */}
+              <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50 duration-200">
+                <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
+                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">GL Head Purchase % Analysis</CardTitle>
+                  <CardDescription className="text-xs">Daily & Monthly cost percentages of Net Sales (Net Sales = Gross POS Sales / 1.05)</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
+                      <TableRow className="border-stone-100 dark:border-slate-900">
+                        <TableHead className="pl-6">GL Purchase Head</TableHead>
+                        <TableHead className="text-right">Daily Cost</TableHead>
+                        <TableHead className="text-right">Daily %</TableHead>
+                        <TableHead className="text-right">Monthly Cost</TableHead>
+                        <TableHead className="text-right">Monthly %</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {heads.map((head) => {
+                        const dailyAmt = purchases.filter(p => p.purchase_head_id === head.id).reduce((acc, p) => acc + Number(p.amount), 0);
+                        const dailyPct = netSales > 0 ? (dailyAmt / netSales) * 100 : 0;
+                        
+                        const monthlyAmt = monthlyPurchases.filter(p => p.purchase_head_id === head.id).reduce((acc, p) => acc + Number(p.amount), 0);
+                        const monthlyNetSales = (monthlySalesTotal * 100) / 105;
+                        const monthlyPct = monthlyNetSales > 0 ? (monthlyAmt / monthlyNetSales) * 100 : 0;
+
+                        if (dailyAmt === 0 && monthlyAmt === 0) return null; // hide inactive heads
+
+                        return (
+                          <TableRow key={head.id} className="border-stone-100 dark:border-slate-900">
+                            <TableCell className="pl-6 font-semibold text-slate-800 dark:text-slate-200">{head.name}</TableCell>
+                            <TableCell className="text-right font-mono text-slate-800">{formatRupee(dailyAmt)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-primary">{dailyPct.toFixed(2)}%</TableCell>
+                            <TableCell className="text-right font-mono text-slate-500">{formatRupee(monthlyAmt)}</TableCell>
+                            <TableCell className="text-right font-mono text-slate-500">{monthlyPct.toFixed(2)}%</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {(purchases.length === 0 && monthlyPurchases.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-12 text-slate-400">
+                            <Info className="h-5 w-5 mx-auto text-stone-300 mb-1.5" />
+                            <p className="text-xs font-medium">No procurement logs registered for this month yet.</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* TAB 3: EXPENSES */}
@@ -1267,7 +1500,7 @@ function DaybookContent() {
                       placeholder="Provide detailed reasons for the register difference..."
                       value={justification}
                       onChange={(e) => setJustification(e.target.value)}
-                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-400 font-semibold"
+                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-400 font-semibold text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 )}
@@ -1275,8 +1508,12 @@ function DaybookContent() {
                 {/* KPI Metrics */}
                 <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-500 font-semibold">
                   <div className="flex justify-between items-center">
-                    <span>Gross Sales Sum</span>
+                    <span>POS Gross Sales (System)</span>
                     <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>POS Net Sales (Net)</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(netSales)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Total Procurement Value</span>
@@ -1290,23 +1527,128 @@ function DaybookContent() {
 
               </CardContent>
 
-              {/* Action Buttons */}
-              {isEditable && (
-                <CardFooter className="pt-2 pb-6 flex flex-col gap-3 border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-4 px-6">
-                  <Button 
-                    onClick={() => handleSaveDraft(false)}
-                    className="w-full border border-stone-250 bg-white hover:bg-stone-50 text-slate-850 font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm dark:bg-stone-900 dark:border-slate-850 dark:text-slate-100 transition-all"
-                  >
-                    <Save className="h-4 w-4" /> Manual Save Draft
-                  </Button>
-                  <Button 
-                    onClick={handleSubmitDaybook}
-                    className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
-                  >
-                    <CheckCircle2 className="h-4 w-4" /> Close & Submit Daybook
-                  </Button>
-                </CardFooter>
-              )}
+              {/* Action Buttons Footer with workflow status routing */}
+              <CardFooter className="pt-2 pb-6 flex flex-col gap-3 border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-4 px-6">
+                {isEditable && (
+                  <>
+                    <Button 
+                      onClick={() => handleSaveDraft(false)}
+                      className="w-full border border-stone-250 bg-white hover:bg-stone-50 text-slate-850 font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm dark:bg-stone-900 dark:border-slate-850 dark:text-slate-100 transition-all"
+                    >
+                      <Save className="h-4 w-4" /> Manual Save Draft
+                    </Button>
+                    <Button 
+                      onClick={handleSubmitDaybook}
+                      disabled={isSalesInvalid}
+                      className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Submit to Branch Manager
+                    </Button>
+                  </>
+                )}
+
+                {daybook.status === 'submitted' && (
+                  <>
+                    {(userRole === 'branch_manager' || userRole === 'super_admin') ? (
+                      <>
+                        <Button 
+                          onClick={handleApproveWorkflow}
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <CheckCircle2 className="h-4 w-4" /> Approve (Branch Manager)
+                        </Button>
+                        <Button 
+                          onClick={() => setRejectOpen(true)}
+                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <XCircle className="h-4 w-4" /> Reject Sheet
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-amber-250 bg-amber-50/20 text-amber-700 font-bold text-xs">
+                        <Lock className="h-4 w-4" />
+                        <span>Submitted - Awaiting Branch Manager Approval</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {daybook.status === 'branch_approved' && (
+                  <>
+                    {(userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin') ? (
+                      <>
+                        <Button 
+                          onClick={handleApproveWorkflow}
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <Lock className="h-4 w-4" /> Finance Approve & Lock
+                        </Button>
+                        <Button 
+                          onClick={() => setRejectOpen(true)}
+                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <XCircle className="h-4 w-4" /> Reject Sheet
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-blue-200 bg-blue-50/20 text-blue-700 font-bold text-xs">
+                        <Lock className="h-4 w-4" />
+                        <span>Awaiting Finance Approval & Lock</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {daybook.status === 'approved' && (
+                  <>
+                    {(userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin') ? (
+                      <Button 
+                        onClick={handleReopenWorkflow}
+                        className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                      >
+                        <Unlock className="h-4 w-4" /> Re-open Daybook Sheet
+                      </Button>
+                    ) : (
+                      <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-emerald-250 bg-emerald-50/20 text-emerald-700 font-bold text-xs">
+                        <Lock className="h-4 w-4" />
+                        <span>Locked & Approved by Finance</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardFooter>
+
+              {/* Rejection comments reason modal */}
+              <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+                <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
+                  <DialogHeader>
+                    <DialogTitle className="text-rose-650 flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5" />
+                      <span>Reject Reconciliation Sheet</span>
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <Label htmlFor="daybook_reject_reason" className="font-semibold text-slate-700 dark:text-slate-350">Reason for rejection (mandatory)</Label>
+                    <textarea
+                      id="daybook_reject_reason"
+                      rows={3}
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Detail why this daily daybook is being returned for correction..."
+                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-slate-800 dark:text-slate-100 font-semibold"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      onClick={handleRejectWorkflow}
+                      disabled={!rejectionReason.trim()}
+                      className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-5 rounded-xl"
+                    >
+                      Reject and Return
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </Card>
 
           </div>
