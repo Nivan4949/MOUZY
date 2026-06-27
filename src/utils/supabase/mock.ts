@@ -508,4 +508,20 @@ export class MockSupabaseClient {
   rpc(fn: string, args: any) {
     return handleMockRPC(fn, args);
   }
+
+  channel(name: string) {
+    const mockChan = {
+      on: (event: string, filter: any, callback: () => void) => {
+        return mockChan;
+      },
+      subscribe: () => {
+        return mockChan;
+      }
+    };
+    return mockChan;
+  }
+
+  removeChannel(chan: any) {
+    return;
+  }
 }
