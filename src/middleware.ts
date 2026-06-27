@@ -6,30 +6,43 @@ export async function middleware(request: NextRequest) {
     request,
   });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const isMock = !url || url.includes('placeholder');
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: any = null;
+
+  if (isMock) {
+    const mockSession = request.cookies.get('sb-mock-session')?.value;
+    if (mockSession === 'true') {
+      user = { id: '00000000-0000-0000-0000-000000000099', email: 'manager.402@mouzyerp.com' };
+    }
+  } else {
+    const supabase = createServerClient(
+      url!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            supabaseResponse = NextResponse.next({
+              request,
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user: realUser },
+    } = await supabase.auth.getUser();
+    user = realUser;
+  }
 
   const isLoginPage = request.nextUrl.pathname.startsWith('/login');
   const isApi = request.nextUrl.pathname.startsWith('/api');
