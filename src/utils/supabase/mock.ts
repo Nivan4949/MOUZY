@@ -455,17 +455,13 @@ export class MockSupabaseClient {
   auth = {
     getUser: async () => {
       if (typeof window === 'undefined') return { data: { user: null } };
-      const isLoggedIn = localStorage.getItem('sb-mock-logged-in');
-      if (isLoggedIn) {
-        const role = localStorage.getItem('sb-mock-role') || 'super_admin';
-        const email = localStorage.getItem('sb-mock-email') || 'manager.402@mouzyerp.com';
-        return { data: { user: { 
-          ...MOCK_USER, 
-          email, 
-          user_metadata: { ...MOCK_USER.user_metadata, app_role: role } 
-        } } };
-      }
-      return { data: { user: null } };
+      const role = localStorage.getItem('sb-mock-role') || 'super_admin';
+      const email = localStorage.getItem('sb-mock-email') || 'manager.402@mouzyerp.com';
+      return { data: { user: { 
+        ...MOCK_USER, 
+        email, 
+        user_metadata: { ...MOCK_USER.user_metadata, app_role: role } 
+      } } };
     },
     signInWithPassword: async ({ email }: any) => {
       if (typeof window !== 'undefined') {

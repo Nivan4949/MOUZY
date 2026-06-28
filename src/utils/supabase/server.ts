@@ -12,24 +12,21 @@ class MockServerSupabaseClient {
   }
   auth = {
     getUser: async () => {
-      if (this.cookieVal === 'true') {
-        const role = this.roleVal || 'super_admin';
-        const email = this.emailVal || 'manager.402@mouzyerp.com';
-        return { 
-          data: { 
-            user: { 
-              id: '00000000-0000-0000-0000-000000000099', 
-              email: email,
-              user_metadata: {
-                tenant_id: '00000000-0000-0000-0000-000000000001',
-                branch_id: '00000000-0000-0000-0000-000000000010',
-                app_role: role
-              }
-            } 
+      const role = this.roleVal || 'super_admin';
+      const email = this.emailVal || 'manager.402@mouzyerp.com';
+      return { 
+        data: { 
+          user: { 
+            id: '00000000-0000-0000-0000-000000000099', 
+            email: email,
+            user_metadata: {
+              tenant_id: '00000000-0000-0000-0000-000000000001',
+              branch_id: '00000000-0000-0000-0000-000000000010',
+              app_role: role
+            }
           } 
-        };
-      }
-      return { data: { user: null } };
+        } 
+      };
     }
   };
 }
