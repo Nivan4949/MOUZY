@@ -750,11 +750,11 @@ function DaybookContent() {
 
   // List of active tabs
   const tabs = [
-    { id: 'sales', label: 'Sales Split', icon: ClipboardList },
-    { id: 'purchases', label: 'Purchases', icon: ShoppingBag },
-    { id: 'expenses', label: 'Expenses', icon: Receipt },
-    { id: 'bank', label: 'Bank & Safe', icon: Building },
-    { id: 'cashbook', label: 'Cash & Coins', icon: Coins },
+    { id: 'sales', label: 'Daily Sales 📈', icon: ClipboardList },
+    { id: 'purchases', label: 'Items Bought 🛒', icon: ShoppingBag },
+    { id: 'expenses', label: 'Shop Expenses 💸', icon: Receipt },
+    { id: 'bank', label: 'Safe Box & Bank 🏦', icon: Building },
+    { id: 'cashbook', label: 'Cash Counter 🪙', icon: Coins },
   ];
 
   return (
@@ -792,7 +792,7 @@ function DaybookContent() {
             )}
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Spreadsheet-style entries for sales split registers, petty cash, and daily drawer reconciliation.
+            Log your daily sales, items bought, shop expenses, bank/safe box flows, and cash counter.
           </p>
         </div>
         <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-stone-100/50 dark:bg-slate-900 border dark:border-slate-800 px-4 py-2 rounded-xl">
@@ -868,22 +868,22 @@ function DaybookContent() {
               <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Sales Splits (₹)</CardTitle>
-                    <CardDescription className="text-xs">Record POS System sales and payment splits. Cash sales are auto-calculated.</CardDescription>
+                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Daily Sales Receipts (₹)</CardTitle>
+                    <CardDescription className="text-xs">Enter your POS system sales and how your customers paid (UPI, Swiggy, Card, etc.). Cash is calculated automatically.</CardDescription>
                   </div>
-                  <div className="text-lg font-bold font-mono text-primary">
-                    POS Sales Total: {formatRupee(totalSalesSplits)}
+                  <div className="text-lg font-extrabold font-mono text-primary">
+                    Total Billing: {formatRupee(totalSalesSplits)}
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
                 {[
-                  { key: 'systemSales', label: 'POS System Sales (Gross)', icon: ClipboardList, color: 'text-primary' },
-                  { key: 'gpay', label: 'GPay/UPI', icon: CreditCard, color: 'text-indigo-500' },
-                  { key: 'card', label: 'Card Swipe', icon: CreditCard, color: 'text-blue-500' },
-                  { key: 'swiggy', label: 'Swiggy', icon: TrendingUp, color: 'text-orange-500' },
-                  { key: 'zomato', label: 'Zomato', icon: TrendingUp, color: 'text-rose-500' },
-                  { key: 'online', label: 'Other Online', icon: ArrowRight, color: 'text-slate-500' },
+                  { key: 'systemSales', label: 'Total Billed Sales (POS)', icon: ClipboardList, color: 'text-primary' },
+                  { key: 'gpay', label: 'GPay / UPI Receipts', icon: CreditCard, color: 'text-indigo-500' },
+                  { key: 'card', label: 'Card Swipes', icon: CreditCard, color: 'text-blue-500' },
+                  { key: 'swiggy', label: 'Swiggy Delivery Sales', icon: TrendingUp, color: 'text-orange-500' },
+                  { key: 'zomato', label: 'Zomato Delivery Sales', icon: TrendingUp, color: 'text-rose-500' },
+                  { key: 'online', label: 'Other Online Orders', icon: ArrowRight, color: 'text-slate-500' },
                 ].map(item => (
                   <div key={item.key} className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
@@ -898,7 +898,7 @@ function DaybookContent() {
                       value={salesSplits[item.key as keyof typeof salesSplits] || ''}
                       placeholder="₹0.00"
                       onChange={(e) => handleSplitChange(item.key, e.target.value)}
-                      className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100"
+                      className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100 focus:ring-primary"
                     />
                   </div>
                 ))}
@@ -907,7 +907,7 @@ function DaybookContent() {
                 <div className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10 col-span-1 sm:col-span-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
                     <Wallet className="h-4 w-4 text-emerald-500" />
-                    <span>Calculated Cash Sales (Auto)</span>
+                    <span>Calculated Cash Sales (Auto-computed)</span>
                   </div>
                   <div className={`font-bold font-mono text-xl h-12 flex items-center px-3 rounded-lg border bg-stone-100/50 text-slate-850 dark:text-slate-100 ${isSalesInvalid ? 'border-rose-300 text-rose-600 bg-rose-50/20' : 'border-stone-200'}`}>
                     {formatRupee(calculatedCash)}
@@ -915,7 +915,7 @@ function DaybookContent() {
                   {isSalesInvalid && (
                     <p className="text-xs text-rose-500 font-semibold mt-1 flex items-center gap-1">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      <span>Warning: GPay, Card, Swiggy, Zomato, and Online splits exceed System Sales. Cash sales cannot be negative.</span>
+                      <span>Warning: Your digital payments exceed the total billed sales. Cash sales cannot be negative.</span>
                     </p>
                   )}
                 </div>
@@ -923,19 +923,19 @@ function DaybookContent() {
             </Card>
           )}
 
-               {activeTab === 'purchases' && (
+          {activeTab === 'purchases' && (
             <div className="space-y-6">
               <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
                 <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Purchases Log (₹)</CardTitle>
-                    <CardDescription className="text-xs">Record local procurements (Cash, Bank or credit accounts)</CardDescription>
+                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Store Procurements (Items Bought) (₹)</CardTitle>
+                    <CardDescription className="text-xs">Log raw materials bought today (like milk, banana, sugar, cups, etc.)</CardDescription>
                   </div>
                   {isEditable && (
                     <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
                       <DialogTrigger render={
                         <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
-                          <Plus className="h-4 w-4" /> Add Purchase Invoice
+                          <Plus className="h-4 w-4" /> Add Bill / Invoice
                         </Button>
                       } />
                       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
@@ -944,7 +944,7 @@ function DaybookContent() {
                         </DialogHeader>
                         <form onSubmit={purForm.handleSubmit(handleAddPurchase)} className="space-y-4 pt-2">
                           <div>
-                            <Label htmlFor="vendor_id" className="text-xs font-semibold">Vendor / Supplier</Label>
+                            <Label htmlFor="vendor_id" className="text-xs font-semibold">Supplier / Vendor</Label>
                             <Select onValueChange={(v: any) => purForm.setValue('vendor_id', v)}>
                               <SelectTrigger className="w-full mt-1.5 h-11">
                                 <SelectValue placeholder="Select supplier" />
@@ -955,10 +955,10 @@ function DaybookContent() {
                             </Select>
                           </div>
                           <div>
-                            <Label htmlFor="purchase_head_id" className="text-xs font-semibold">GL Account Classification</Label>
+                            <Label htmlFor="purchase_head_id" className="text-xs font-semibold">Item Category</Label>
                             <Select onValueChange={(v: any) => purForm.setValue('purchase_head_id', v)}>
                               <SelectTrigger className="w-full mt-1.5 h-11">
-                                <SelectValue placeholder="Select GL Head" />
+                                <SelectValue placeholder="Select category (Milk, Banana, Sugar, etc.)" />
                               </SelectTrigger>
                               <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
                                 {heads.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
@@ -967,24 +967,24 @@ function DaybookContent() {
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <Label htmlFor="invoice_number" className="text-xs font-semibold">Invoice Number</Label>
+                              <Label htmlFor="invoice_number" className="text-xs font-semibold">Bill / Invoice Number</Label>
                               <Input id="invoice_number" {...purForm.register('invoice_number')} className="mt-1.5 h-11" />
                             </div>
                             <div>
-                              <Label htmlFor="amount" className="text-xs font-semibold">Gross Amount (₹)</Label>
+                              <Label htmlFor="amount" className="text-xs font-semibold">Bill Value (₹)</Label>
                               <Input id="amount" type="number" step="0.01" {...purForm.register('amount')} className="mt-1.5 h-11" />
                             </div>
                           </div>
                           <div>
-                            <Label htmlFor="payment_mode" className="text-xs font-semibold">Payment Mode</Label>
+                            <Label htmlFor="payment_mode" className="text-xs font-semibold">How did you pay?</Label>
                             <Select onValueChange={(v) => purForm.setValue('payment_mode', v as any)} defaultValue="cash">
                               <SelectTrigger className="w-full mt-1.5 h-11">
-                                <SelectValue placeholder="Payment Mode" />
+                                <SelectValue placeholder="How did you pay?" />
                               </SelectTrigger>
                               <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
-                                <SelectItem value="cash">Cash (Drawer Outflow)</SelectItem>
-                                <SelectItem value="bank">Bank Swipe / UPI</SelectItem>
-                                <SelectItem value="credit">Credit (On Accounts AP)</SelectItem>
+                                <SelectItem value="cash">Paid with Cash (from Cash Drawer)</SelectItem>
+                                <SelectItem value="bank">Paid with Bank (UPI / Card)</SelectItem>
+                                <SelectItem value="credit">Buy on Credit (Pay supplier later)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1002,11 +1002,11 @@ function DaybookContent() {
                   <Table>
                     <TableHeader className="bg-stone-50/50 dark:bg-slate-950/20">
                       <TableRow className="border-stone-100 dark:border-slate-900">
-                        <TableHead className="pl-6">Invoice</TableHead>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Classification</TableHead>
-                        <TableHead>Mode</TableHead>
-                        <TableHead className="text-right">Value</TableHead>
+                        <TableHead className="pl-6">Bill No.</TableHead>
+                        <TableHead>Supplier</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Paid via</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
                         {isEditable && <TableHead className="w-12"></TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -1112,19 +1112,19 @@ function DaybookContent() {
             <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
               <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Petty Cash Expenses (₹)</CardTitle>
-                  <CardDescription className="text-xs">Record outlet operational petty cash voucher usage</CardDescription>
+                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Shop Expenses (₹)</CardTitle>
+                  <CardDescription className="text-xs">Record everyday operational expenses (like electricity bills, water tankers, staff food, cleaning supplies).</CardDescription>
                 </div>
                 {isEditable && (
                   <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
                     <DialogTrigger render={
                       <Button variant="outline" size="sm" className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300">
-                        <Plus className="h-4 w-4" /> Add Petty Expense
+                        <Plus className="h-4 w-4" /> Add Expense
                       </Button>
                     } />
                     <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
                       <DialogHeader>
-                        <DialogTitle>Log Petty Cash Expense</DialogTitle>
+                        <DialogTitle>Add Shop Expense</DialogTitle>
                       </DialogHeader>
                       <form onSubmit={expForm.handleSubmit(handleAddExpense)} className="space-y-4 pt-2">
                         <div>
@@ -1139,22 +1139,22 @@ function DaybookContent() {
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor="amount" className="text-xs font-semibold">Voucher Value (₹)</Label>
-                          <Input id="amount" type="number" step="0.01" {...expForm.register('amount')} className="mt-1.5 h-11" />
+                          <Label htmlFor="amount" className="text-xs font-semibold">Expense Amount (₹)</Label>
+                          <Input id="amount" type="number" step="0.01" {...expForm.register('amount')} className="mt-1.5 h-11 font-mono focus:ring-primary" />
                         </div>
                         <div>
-                          <Label htmlFor="description" className="text-xs font-semibold">Details / Justification</Label>
-                          <Input id="description" placeholder="e.g. Electricity bill payout / Broom stick buy" {...expForm.register('description')} className="mt-1.5 h-11" />
+                          <Label htmlFor="description" className="text-xs font-semibold">Details / Description</Label>
+                          <Input id="description" placeholder="e.g. Electricity bill payout / Broom stick buy" {...expForm.register('description')} className="mt-1.5 h-11 focus:ring-primary" />
                         </div>
                         <div>
-                          <Label htmlFor="payment_mode" className="text-xs font-semibold">Expense Origin</Label>
+                          <Label htmlFor="payment_mode" className="text-xs font-semibold">How did you pay?</Label>
                           <Select onValueChange={(v) => expForm.setValue('payment_mode', v as any)} defaultValue="cash">
                             <SelectTrigger className="w-full mt-1.5 h-11">
-                              <SelectValue placeholder="Payment mode" />
+                              <SelectValue placeholder="How did you pay?" />
                             </SelectTrigger>
                             <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
-                              <SelectItem value="cash">Petty Cash Float (Drawer)</SelectItem>
-                              <SelectItem value="bank">UPI / Bank Pay</SelectItem>
+                              <SelectItem value="cash">Paid with Drawer Cash</SelectItem>
+                              <SelectItem value="bank">Paid with Bank (UPI)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1174,7 +1174,7 @@ function DaybookContent() {
                     <TableRow className="border-stone-100 dark:border-slate-900">
                       <TableHead className="pl-6">Category</TableHead>
                       <TableHead>Details</TableHead>
-                      <TableHead>Origin</TableHead>
+                      <TableHead>Paid via</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       {isEditable && <TableHead className="w-12"></TableHead>}
@@ -1232,8 +1232,8 @@ function DaybookContent() {
             <div className="space-y-6">
               <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
                 <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Bank Safe Flows (₹)</CardTitle>
-                  <CardDescription className="text-xs">Monitor bank opening balances, safe box drops, and bank withdrawals</CardDescription>
+                  <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Safe Box & Bank Flows (₹)</CardTitle>
+                  <CardDescription className="text-xs">Record any cash deposited into the bank/safe box or withdrawn for shop usage.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
                   <div className="space-y-1.5 p-4 rounded-xl border border-stone-150 dark:border-stone-900 bg-stone-50/10">
@@ -1245,7 +1245,7 @@ function DaybookContent() {
                     <span className="text-2xl font-bold font-mono text-emerald-700 block mt-1">{formatRupee(bankOpening + bankDeposits - bankWithdrawals)}</span>
                   </div>
                   <div className="space-y-1.5 p-4 rounded-xl border border-stone-150 dark:border-stone-900 bg-stone-50/10">
-                    <Label htmlFor="bank_deposits" className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bank Deposits / Safe Drops</Label>
+                    <Label htmlFor="bank_deposits" className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cash Deposited to Bank / Safe Box</Label>
                     <Input
                       id="bank_deposits"
                       type="number"
@@ -1255,11 +1255,11 @@ function DaybookContent() {
                       value={bankDeposits || ''}
                       placeholder="₹0.00"
                       onChange={(e) => setBankDeposits(parseFloat(e.target.value) || 0)}
-                      className="font-bold font-mono text-lg h-12 mt-1.5"
+                      className="font-bold font-mono text-lg h-12 mt-1.5 focus:ring-primary"
                     />
                   </div>
                   <div className="space-y-1.5 p-4 rounded-xl border border-stone-150 dark:border-stone-900 bg-stone-50/10">
-                    <Label htmlFor="bank_withdrawals" className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bank Withdrawals</Label>
+                    <Label htmlFor="bank_withdrawals" className="text-xs font-bold text-slate-500 uppercase tracking-wide">Cash Withdrawn from Bank</Label>
                     <Input
                       id="bank_withdrawals"
                       type="number"
@@ -1381,38 +1381,58 @@ function DaybookContent() {
           {activeTab === 'cashbook' && (
             <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
               <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-                <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Denominations Notes Tally</CardTitle>
-                <CardDescription className="text-xs">Quantify physical cash bills to count actual drawer cash</CardDescription>
+                <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Cash Counter (Count your money) 🪙</CardTitle>
+                <CardDescription className="text-xs">Count the physical notes and coins in the cash drawer to find your total cash.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                {denominationList.map((denom) => (
-                  <div key={denom.field} className="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-stone-50/50">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-350 w-24">
-                      {denom.val === 1 ? 'Coins' : `₹${denom.val} Bill`}
-                    </span>
-                    <span className="text-xs text-slate-400">×</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      disabled={!isEditable}
-                      value={denomCounts[denom.field] || ''}
-                      placeholder="0"
-                      onChange={(e) => handleDenomChange(denom.field, e.target.value)}
-                      className="w-24 text-right font-bold font-mono h-11 text-base focus:ring-primary"
-                    />
-                    <span className="text-base font-bold text-slate-650 dark:text-slate-300 w-32 text-right font-mono">
-                      {formatRupee(denom.val * (denomCounts[denom.field] || 0))}
-                    </span>
-                  </div>
-                ))}
+              <CardContent className="space-y-3 pt-6">
+                {(() => {
+                  const getDenomStyle = (field: string) => {
+                    switch (field) {
+                      case 'denom_500': return 'border-l-4 border-stone-500 bg-stone-500/5';
+                      case 'denom_200': return 'border-l-4 border-orange-400 bg-orange-400/5';
+                      case 'denom_100': return 'border-l-4 border-indigo-400 bg-indigo-400/5';
+                      case 'denom_50': return 'border-l-4 border-cyan-400 bg-cyan-400/5';
+                      case 'denom_20': return 'border-l-4 border-lime-500 bg-lime-500/5';
+                      case 'denom_10': return 'border-l-4 border-amber-600 bg-amber-600/5';
+                      case 'denom_5': return 'border-l-4 border-emerald-500 bg-emerald-500/5';
+                      case 'denom_2': return 'border-l-4 border-rose-450 bg-rose-450/5';
+                      case 'denom_1': return 'border-l-4 border-slate-400 bg-slate-400/5';
+                      case 'denom_coins': return 'border-l-4 border-yellow-500 bg-yellow-500/5';
+                      default: return 'border-l border-stone-200';
+                    }
+                  };
+
+                  return denominationList.map((denom) => {
+                    const borderStyle = getDenomStyle(denom.field);
+                    return (
+                      <div key={denom.field} className={`flex items-center justify-between gap-4 p-3 rounded-xl hover:bg-stone-50/50 transition-all ${borderStyle}`}>
+                        <span className="text-sm font-extrabold text-slate-700 dark:text-slate-350 w-32">
+                          {denom.field === 'denom_coins' ? 'Other Coins' : `₹${denom.val} Note/Coin`}
+                        </span>
+                        <span className="text-xs text-slate-450 font-bold">×</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          disabled={!isEditable}
+                          value={denomCounts[denom.field] || ''}
+                          placeholder="0"
+                          onChange={(e) => handleDenomChange(denom.field, e.target.value)}
+                          className="w-24 text-right font-extrabold font-mono h-11 text-base focus:ring-primary bg-white dark:bg-slate-900 border border-slate-200"
+                        />
+                        <span className="text-base font-extrabold text-slate-900 dark:text-white w-32 text-right font-mono">
+                          {formatRupee(denom.val * (denomCounts[denom.field] || 0))}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
                 <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 flex justify-between items-center bg-primary/5 p-4 rounded-xl border border-primary/10">
-                  <span className="text-sm font-extrabold text-primary uppercase tracking-wide">Physical counted Total</span>
-                  <span className="text-xl font-extrabold font-mono text-primary">{formatRupee(actualCash)}</span>
+                  <span className="text-sm font-extrabold text-primary uppercase tracking-wide">Actual Counted Total</span>
+                  <span className="text-xl font-black font-mono text-primary">{formatRupee(actualCash)}</span>
                 </div>
               </CardContent>
             </Card>
           )}
-
         </div>
 
         {/* Right Side: Sticky Summary Audit Panel (Live update) */}
@@ -1421,107 +1441,112 @@ function DaybookContent() {
             
             <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-md rounded-2xl overflow-hidden">
               <CardHeader className="border-b border-stone-150 dark:border-slate-900 bg-stone-50/80 dark:bg-slate-950/30 py-4">
-                <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-slate-700 dark:text-slate-300">
-                  Reconciliation Summary
+                <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-slate-700 dark:text-slate-350">
+                  Daily Balance Check 💰
                 </CardTitle>
-                <CardDescription className="text-xs">Dynamic audit checks for the register drawer</CardDescription>
+                <CardDescription className="text-xs">Compare expected cash in the drawer against what you counted.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
                 
                 {/* Statistics Lists */}
-                <div className="space-y-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
                   <div className="flex justify-between items-center">
-                    <span>Opening Cash float</span>
+                    <span>Opening Drawer Cash</span>
                     <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(Number(daybook.opening_cash))}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Cash Sales (+)</span>
+                    <span>Cash Billed Sales (+)</span>
                     <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashSales)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Other Cash Income (+)</span>
+                    <span>Extra Cash Received (+)</span>
                     <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashIncome)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Outflow Purchases/Expenses (-)</span>
+                    <span>Cash Paid Out (Items/Expenses) (-)</span>
                     <span className="font-mono text-rose-600">-{formatRupee(totalCashPurchases + totalCashExpenses)}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-stone-150 dark:border-slate-900 pb-2">
-                    <span>Net safe deposits (-)</span>
+                    <span>Cash Sent to Safe/Bank (-)</span>
                     <span className="font-mono text-rose-600">-{formatRupee(bankDeposits - bankWithdrawals)}</span>
                   </div>
                 </div>
 
                 {/* Audit Drawer Check */}
                 <div className="space-y-2.5 pt-2 border-b border-stone-150 dark:border-slate-900 pb-4">
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-650 dark:text-slate-300">
-                    <span>Expected Drawer cash:</span>
+                  <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                    <span>Expected Cash in Drawer:</span>
                     <span className="font-mono text-sm">{formatRupee(expectedCash)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-650 dark:text-slate-300">
-                    <span>Physical counted cash:</span>
+                  <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                    <span>Actual Counted Cash:</span>
                     <span className="font-mono text-sm">{formatRupee(actualCash)}</span>
                   </div>
                 </div>
 
                 {/* Dynamic Status Variance Badge */}
-                <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
-                  cashDifference === 0 
-                    ? 'bg-emerald-50/40 border-emerald-100 text-emerald-800 dark:bg-emerald-950/10 dark:border-emerald-900/30' 
-                    : Math.abs(cashDifference) <= 200
-                    ? 'bg-amber-50/50 border-amber-250 text-amber-800 dark:bg-amber-950/10 dark:border-amber-900/30'
-                    : 'bg-rose-50/50 border-rose-250 text-rose-800 dark:bg-rose-950/10 dark:border-rose-900/30'
-                }`}>
-                  <div className="flex items-center justify-between font-bold text-sm">
-                    <span>Drawer Variance</span>
-                    <span className="font-mono text-base">
-                      {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
-                    </span>
+                {cashDifference === 0 ? (
+                  <div className="p-4 rounded-xl border border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex flex-col items-center justify-center gap-1.5 text-center">
+                    <span className="text-xl font-bold">🎉 Perfect Balance!</span>
+                    <p className="text-[11px] leading-snug font-semibold text-emerald-700 dark:text-emerald-400">Counted cash matches expected cash exactly. Great job!</p>
                   </div>
-                  <p className="text-[10px] opacity-80 leading-snug">
-                    {cashDifference === 0 
-                      ? 'Reconciled! Physical counted cash matches expected drawer exactly.'
-                      : `Drawer imbalance of ${formatRupee(Math.abs(cashDifference))}. Must justify comment before submission.`
-                    }
-                  </p>
-                </div>
+                ) : (
+                  <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
+                    Math.abs(cashDifference) <= 200
+                      ? 'bg-amber-50 border-amber-250 text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50'
+                      : 'bg-rose-50 border-rose-250 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50'
+                  }`}>
+                    <div className="flex items-center justify-between font-extrabold text-sm">
+                      <span>Drawer Difference:</span>
+                      <span className="font-mono text-base">
+                        {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
+                      </span>
+                    </div>
+                    <p className="text-[10px] opacity-90 leading-snug font-semibold">
+                      {cashDifference < 0 
+                        ? `Drawer is short by ${formatRupee(Math.abs(cashDifference))}. Please type a short reason below.`
+                        : `Drawer has an extra ${formatRupee(cashDifference)}. Please type a short reason below.`
+                      }
+                    </p>
+                  </div>
+                )}
 
                 {/* Variance Comments Field */}
                 {Math.abs(cashDifference) > 0 && (
                   <div className="space-y-1.5 pt-2">
                     <Label htmlFor="justification" className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      <span>Variance Justification</span>
+                      <span>Reason for Cash Difference</span>
                     </Label>
                     <textarea
                       id="justification"
                       rows={3}
                       disabled={!isEditable}
-                      placeholder="Provide detailed reasons for the register difference..."
+                      placeholder="e.g., Cashier short change given, or forgot to log banana local purchase..."
                       value={justification}
                       onChange={(e) => setJustification(e.target.value)}
-                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-400 font-semibold text-slate-800 dark:text-slate-100"
+                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-455 font-semibold text-slate-800 dark:text-slate-100"
                     />
                   </div>
                 )}
 
                 {/* KPI Metrics */}
-                <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-500 font-semibold">
+                <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-550 font-semibold">
                   <div className="flex justify-between items-center">
-                    <span>POS Gross Sales (System)</span>
+                    <span>Total Sales Billed (POS)</span>
                     <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>POS Net Sales (Net)</span>
+                    <span>Net Sales (Excl. Tax)</span>
                     <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(netSales)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Total Procurement Value</span>
+                    <span>Total Purchases logged today</span>
                     <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
                   </div>
                   <div className="flex justify-between items-center font-bold text-slate-700 dark:text-slate-350">
-                    <span>Food Cost percentage</span>
-                    <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(2)}%</span>
+                    <span>Ingredient Cost % (Food Cost)</span>
+                    <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(1)}%</span>
                   </div>
                 </div>
 
@@ -1624,17 +1649,17 @@ function DaybookContent() {
                   <DialogHeader>
                     <DialogTitle className="text-rose-650 flex items-center gap-2">
                       <AlertTriangle className="h-5 w-5" />
-                      <span>Reject Reconciliation Sheet</span>
+                      <span>Reject & Return Daybook Sheet</span>
                     </DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-2">
-                    <Label htmlFor="daybook_reject_reason" className="font-semibold text-slate-700 dark:text-slate-350">Reason for rejection (mandatory)</Label>
+                    <Label htmlFor="daybook_reject_reason" className="font-semibold text-slate-700 dark:text-slate-350">Reason for rejecting this sheet (Required)</Label>
                     <textarea
                       id="daybook_reject_reason"
                       rows={3}
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Detail why this daily daybook is being returned for correction..."
+                      placeholder="Write a brief explanation for the cashier to fix this sheet..."
                       className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-slate-800 dark:text-slate-100 font-semibold"
                     />
                   </div>

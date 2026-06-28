@@ -221,18 +221,21 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto px-4 md:px-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Performance Dashboard
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Real-time branch financial metrics, food costs, and daybook cash reconciliations.
-        </p>
+      <div className="bg-accent/10 p-6 rounded-2xl border border-accent/20 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-primary uppercase">
+            Mouzy Dashboard 🍌
+          </h1>
+          <p className="text-sm text-slate-650 mt-1 font-medium">
+            Welcome back! Here is a simple overview of how your store is performing today.
+          </p>
+        </div>
+        <span className="text-3xl animate-bounce">🥛</span>
       </div>
 
       {/* CORE OPERATIONAL METRICS */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Core Store Operations</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Today's Sales & Ingredient Costs</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Today's Net Sales */}
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
@@ -243,9 +246,9 @@ export default function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">{formatRupee(stats.todayNetSales)}</div>
-              <p className="text-xs text-slate-500 mt-1">
-                Gross sales: {formatRupee(stats.todaySales)}
+              <div className="text-2xl font-extrabold font-mono text-primary">{formatRupee(stats.todayNetSales)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Total with tax: {formatRupee(stats.todaySales)}
               </p>
             </CardContent>
           </Card>
@@ -254,14 +257,14 @@ export default function DashboardPage() {
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Monthly Net Sales
+                This Month's Sales
               </CardTitle>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">{formatRupee(stats.monthlyNetSales)}</div>
-              <p className="text-xs text-slate-500 mt-1">
-                Gross sales: {formatRupee(stats.monthlySales)}
+              <div className="text-2xl font-extrabold font-mono text-primary">{formatRupee(stats.monthlyNetSales)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Total with tax: {formatRupee(stats.monthlySales)}
               </p>
             </CardContent>
           </Card>
@@ -270,14 +273,14 @@ export default function DashboardPage() {
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Today's Food Cost %
+                Today's Ingredient Cost
               </CardTitle>
               <Activity className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono text-primary">{stats.todayFoodCost.toFixed(2)}%</div>
-              <p className="text-xs text-slate-500 mt-1">
-                Procurements: {formatRupee(stats.todayPurchases)}
+              <div className="text-2xl font-extrabold font-mono text-primary">{stats.todayFoodCost.toFixed(1)}%</div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Stock bought: {formatRupee(stats.todayPurchases)}
               </p>
             </CardContent>
           </Card>
@@ -286,14 +289,14 @@ export default function DashboardPage() {
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Monthly Food Cost %
+                This Month's Cost
               </CardTitle>
-              <Activity className="h-4 w-4 text-emerald-500" />
+              <Activity className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono text-emerald-600">{stats.monthlyFoodCost.toFixed(2)}%</div>
-              <p className="text-xs text-slate-500 mt-1">
-                Procurements: {formatRupee(stats.monthlyPurchases)}
+              <div className="text-2xl font-extrabold font-mono text-primary">{stats.monthlyFoodCost.toFixed(1)}%</div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Stock bought: {formatRupee(stats.monthlyPurchases)}
               </p>
             </CardContent>
           </Card>
@@ -302,19 +305,19 @@ export default function DashboardPage() {
 
       {/* CASHFLOW & RECONCILIATION */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Cashbook & Balances</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Daily Register & Balances</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {/* Expenses Today */}
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Approved Expenses (Today)
+                Shop Expenses Today
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-rose-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">{formatRupee(stats.todayExpenses)}</div>
-              <p className="text-xs text-slate-500 mt-1">Petty cash payouts</p>
+              <div className="text-2xl font-extrabold font-mono text-slate-800 dark:text-slate-200">{formatRupee(stats.todayExpenses)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Everyday utility & operational spending</p>
             </CardContent>
           </Card>
 
@@ -326,16 +329,16 @@ export default function DashboardPage() {
           }`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Drawer Cash Variance
+                Register Cash Difference
               </CardTitle>
               <AlertTriangle className={`h-4 w-4 ${stats.cashVariance !== 0 ? 'text-rose-500' : 'text-slate-400'}`} />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold font-mono ${stats.cashVariance !== 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+              <div className={`text-2xl font-extrabold font-mono ${stats.cashVariance !== 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
                 {stats.cashVariance > 0 ? `+${formatRupee(stats.cashVariance)}` : formatRupee(stats.cashVariance)}
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {stats.cashVariance === 0 ? 'Balanced drawer' : stats.cashVariance < 0 ? 'Cash shortage alert' : 'Cash overage'}
+              <p className="text-[11px] text-slate-500 mt-1">
+                {stats.cashVariance === 0 ? 'Perfect balance!' : stats.cashVariance < 0 ? 'Cash shortage in drawer' : 'Extra cash in drawer'}
               </p>
             </CardContent>
           </Card>
@@ -344,13 +347,13 @@ export default function DashboardPage() {
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                AP Vendor Outstanding
+                Unpaid Supplier/Vendor Bills
               </CardTitle>
               <Layers className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">{formatRupee(stats.vendorOutstanding)}</div>
-              <p className="text-xs text-slate-500 mt-1">Outstanding liabilities</p>
+              <div className="text-2xl font-extrabold font-mono text-slate-800 dark:text-slate-200">{formatRupee(stats.vendorOutstanding)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Total outstanding credit balances</p>
             </CardContent>
           </Card>
         </div>
@@ -361,7 +364,7 @@ export default function DashboardPage() {
         {/* Sales Trend Chart */}
         <Card className="lg:col-span-2 border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 p-6 rounded-2xl shadow-sm">
           <CardHeader className="px-0 pt-0 pb-6 border-b border-stone-100 dark:border-stone-900">
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white">
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
               Sales Trend (Last 7 Days)
             </CardTitle>
           </CardHeader>
@@ -372,20 +375,20 @@ export default function DashboardPage() {
                   <AreaChart data={salesTrend}>
                     <defs>
                       <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0d692d" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#0d692d" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#0D522C" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#0D522C" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-slate-200 dark:stroke-slate-800" />
-                    <XAxis dataKey="date" className="text-xs fill-slate-500 font-medium" />
-                    <YAxis className="text-xs fill-slate-500 font-medium font-mono" tickFormatter={(v) => `₹${v}`} />
+                    <XAxis dataKey="date" className="text-xs fill-slate-500 font-semibold" />
+                    <YAxis className="text-xs fill-slate-500 font-semibold font-mono" tickFormatter={(v) => `₹${v}`} />
                     <Tooltip formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Sales']} />
-                    <Area type="monotone" dataKey="sales" stroke="#0d692d" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
+                    <Area type="monotone" dataKey="sales" stroke="#0D522C" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex h-full items-center justify-center bg-stone-50 dark:bg-slate-900 border border-dashed border-stone-200 dark:border-slate-800 rounded-xl">
-                  <p className="text-xs text-slate-400 font-semibold">No sales transactions logged for the chosen period.</p>
+                  <p className="text-xs text-slate-450 font-semibold">No sales transactions logged for the chosen period.</p>
                 </div>
               )}
             </div>

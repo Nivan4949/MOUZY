@@ -30,16 +30,12 @@ interface SidebarItem {
 
 const navigationItems: SidebarItem[] = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Daybook Sheet', href: '/daybook', icon: ClipboardList },
-  { name: 'Purchases', href: '/daybook?tab=purchases', icon: ShoppingBag },
-  { name: 'Expenses', href: '/daybook?tab=expenses', icon: Receipt },
+  { name: 'Daily Daybook', href: '/daybook', icon: ClipboardList },
   { name: 'Vendor Ledger', href: '/vendors', icon: Users },
-  { name: 'Cash Book', href: '/daybook?tab=cashbook', icon: Coins },
-  { name: 'Bank', href: '/daybook?tab=bank', icon: Building },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Users', href: '/users', icon: UserCheck },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Users & Staff', href: '/users', icon: UserCheck },
   { name: 'HQ Approvals', href: '/hq', icon: ShieldCheck },
+  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 function NavigationList({ pathname, onClick }: { pathname: string; onClick: () => void }) {
@@ -61,10 +57,10 @@ function NavigationList({ pathname, onClick }: { pathname: string; onClick: () =
           <Link
             key={item.name}
             href={item.href}
-            className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+            className={`flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
               isActive 
-                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10 font-semibold' 
-                : 'text-slate-600 hover:bg-primary/5 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-900/50 dark:hover:text-emerald-400'
+                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10' 
+                : 'text-slate-650 hover:bg-primary/5 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-900/50 dark:hover:text-emerald-400'
             }`}
             onClick={onClick}
           >
@@ -111,25 +107,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Sidebar Navigation */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 transition-transform duration-300 lg:static lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-250 bg-white dark:border-slate-800 dark:bg-slate-950 transition-transform duration-300 lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 bg-accent/5">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12c3.5 6.5 12.5 6.5 16 0" />
-                <path d="M12 4v8" />
-                <circle cx="12" cy="17.5" r="1.5" className="fill-accent text-accent animate-pulse" stroke="currentColor" strokeWidth="1" />
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-primary shadow-sm border border-primary/10">
+              <svg className="h-7 w-7" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Banana Smile Curve */}
+                <path d="M15,40 Q50,85 85,40 Q50,65 15,40 Z" className="fill-primary" />
+                {/* Spoon Handle */}
+                <path d="M48,15 L52,15 L52,50 L48,50 Z" className="fill-primary" stroke="currentColor" strokeWidth="1" />
+                {/* Spoon Top */}
+                <ellipse cx="50" cy="15" rx="5" ry="3" className="fill-primary" />
+                {/* Fruits */}
+                <circle cx="30" cy="45" r="3" fill="#EF4444" />
+                <circle cx="70" cy="45" r="3.5" fill="#EF4444" />
+                <circle cx="38" cy="52" r="3" fill="#F97316" />
+                <circle cx="62" cy="52" r="2.5" fill="#F97316" />
+                <circle cx="43" cy="43" r="2.5" fill="#8B5CF6" />
+                <circle cx="57" cy="43" r="2.5" fill="#8B5CF6" />
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-extrabold tracking-tight text-primary uppercase leading-tight">
+              <span className="text-base font-black tracking-tight text-primary uppercase leading-none">
                 Mouzy
               </span>
-              <span className="text-[9px] font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wider leading-none">
-                Avil Milk ERP
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none mt-0.5">
+                Banana Avil Milk
               </span>
             </div>
           </Link>
