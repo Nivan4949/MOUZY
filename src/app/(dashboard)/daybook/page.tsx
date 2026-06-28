@@ -757,6 +757,48 @@ function DaybookContent() {
     { id: 'cashbook', label: 'Cash Counter 🪙', icon: Coins },
   ];
 
+  // Tab live progress metrics helpers
+  const getTabLiveValue = (id: string) => {
+    switch (id) {
+      case 'sales':
+        return formatRupee(totalSalesSplits);
+      case 'purchases':
+        return formatRupee(totalPurchasesValue);
+      case 'expenses':
+        return formatRupee(expenses.reduce((sum: number, e: any) => sum + (e.is_approved ? Number(e.amount) : 0), 0));
+      case 'bank':
+        return bankDeposits > 0 || bankWithdrawals > 0 
+          ? `In: ${formatRupee(bankDeposits)} / Out: ${formatRupee(bankWithdrawals)}` 
+          : 'No bank flows';
+      case 'cashbook':
+        return formatRupee(actualCash);
+      default:
+        return '';
+    }
+  };
+
+  const getTabStatus = (id: string) => {
+    switch (id) {
+      case 'sales':
+        return isSalesInvalid ? 'error' : totalSalesSplits > 0 ? 'success' : 'empty';
+      case 'purchases':
+        return purchases.length > 0 ? 'success' : 'empty';
+      case 'expenses':
+        return expenses.length > 0 ? 'success' : 'empty';
+      case 'bank':
+        return (bankDeposits > 0 || bankWithdrawals > 0) ? 'success' : 'empty';
+      case 'cashbook':
+        return actualCash > 0 ? 'success' : 'empty';
+      default:
+        return 'empty';
+    }
+  };
+
+  const successTabsCount = ['sales', 'purchases', 'expenses', 'bank', 'cashbook']
+    .map(getTabStatus)
+    .filter(status => status === 'success').length;
+  const progressPercent = (successTabsCount / 5) * 100;
+
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6">
       {/* Header Info Banner */}
@@ -834,33 +876,69 @@ function DaybookContent() {
         </div>
       )}
 
-      {/* Tab Switcher Horizontal Bar */}
-      <div className="flex flex-wrap gap-2 pb-2 border-b border-stone-200 dark:border-stone-850">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isSelected = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-xl border transition-all duration-200 ${
-                isSelected
-                  ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/10'
-                  : 'bg-white border-stone-200 hover:bg-stone-50 text-stone-600 dark:bg-stone-900 dark:border-stone-800 dark:text-stone-300'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Two Column Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      {/* Three Panel Workspace Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
         
-        {/* Left Side: Active Tab Worksheet Form */}
-        <div className="xl:col-span-2 space-y-6">
+        {/* PANEL 1: Left Step Navigator & Progress (xl:col-span-3) */}
+        <div className="xl:col-span-3 space-y-4">
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 p-4 rounded-2xl shadow-sm flex flex-col gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Daybook Progress</span>
+                <span className="text-xs font-mono font-black text-primary">{successTabsCount}/5 filled</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-primary h-full transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            <nav className="flex flex-col gap-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isSelected = activeTab === tab.id;
+                const status = getTabStatus(tab.id);
+                const liveVal = getTabLiveValue(tab.id);
+
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`w-full flex flex-col gap-1 items-start text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/10'
+                        : 'bg-white border-stone-200 hover:bg-stone-50 hover:border-stone-300 text-stone-700 dark:bg-slate-950 dark:border-slate-850 dark:text-slate-350 dark:hover:bg-slate-900/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 w-full">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider flex-1">{tab.label}</span>
+                      {status === 'success' && (
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10 shrink-0" />
+                      )}
+                      {status === 'error' && (
+                        <span className="h-2 w-2 rounded-full bg-rose-500 ring-4 ring-rose-500/10 shrink-0" />
+                      )}
+                      {status === 'empty' && (
+                        <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700 shrink-0" />
+                      )}
+                    </div>
+                    {liveVal && (
+                      <span className={`text-[10px] font-extrabold font-mono ml-6.5 ${isSelected ? 'text-primary-foreground/80' : 'text-slate-500'}`}>
+                        {liveVal}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </Card>
+        </div>
+
+        {/* PANEL 2: Center Active Worksheet Form (xl:col-span-6) */}
+        <div className="xl:col-span-6 space-y-6">
           
           {/* TAB 1: SALES SPLITS */}
           {activeTab === 'sales' && (
@@ -1405,21 +1483,54 @@ function DaybookContent() {
                   return denominationList.map((denom) => {
                     const borderStyle = getDenomStyle(denom.field);
                     return (
-                      <div key={denom.field} className={`flex items-center justify-between gap-4 p-3 rounded-xl hover:bg-stone-50/50 transition-all ${borderStyle}`}>
-                        <span className="text-sm font-extrabold text-slate-700 dark:text-slate-350 w-32">
-                          {denom.field === 'denom_coins' ? 'Other Coins' : `₹${denom.val} Note/Coin`}
-                        </span>
-                        <span className="text-xs text-slate-450 font-bold">×</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          disabled={!isEditable}
-                          value={denomCounts[denom.field] || ''}
-                          placeholder="0"
-                          onChange={(e) => handleDenomChange(denom.field, e.target.value)}
-                          className="w-24 text-right font-extrabold font-mono h-11 text-base focus:ring-primary bg-white dark:bg-slate-900 border border-slate-200"
-                        />
-                        <span className="text-base font-extrabold text-slate-900 dark:text-white w-32 text-right font-mono">
+                      <div key={denom.field} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-stone-50/50 transition-all ${borderStyle}`}>
+                        <div className="flex items-center justify-between sm:justify-start gap-4 flex-1">
+                          <span className="text-sm font-extrabold text-slate-700 dark:text-slate-350 min-w-24">
+                            {denom.field === 'denom_coins' ? 'Other Coins' : `₹${denom.val} Note/Coin`}
+                          </span>
+                          <span className="text-xs text-slate-450 font-bold hidden sm:inline">×</span>
+                        </div>
+                        
+                        {/* Touch Stepper Controls */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={!isEditable}
+                            onClick={() => {
+                              const curr = Number(denomCounts[denom.field] || 0);
+                              if (curr > 0) {
+                                handleDenomChange(denom.field, String(curr - 1));
+                              }
+                            }}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 dark:bg-slate-900 dark:hover:bg-slate-800 dark:active:bg-slate-700 border border-stone-250 dark:border-slate-850 text-slate-800 dark:text-slate-100 font-extrabold text-lg select-none disabled:opacity-40 transition-colors cursor-pointer"
+                          >
+                            -
+                          </button>
+                          
+                          <Input
+                            type="number"
+                            min="0"
+                            disabled={!isEditable}
+                            value={denomCounts[denom.field] || ''}
+                            placeholder="0"
+                            onChange={(e) => handleDenomChange(denom.field, e.target.value)}
+                            className="w-16 text-center font-extrabold font-mono h-10 text-base focus:ring-primary bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 p-0"
+                          />
+                          
+                          <button
+                            type="button"
+                            disabled={!isEditable}
+                            onClick={() => {
+                              const curr = Number(denomCounts[denom.field] || 0);
+                              handleDenomChange(denom.field, String(curr + 1));
+                            }}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 dark:bg-slate-900 dark:hover:bg-slate-800 dark:active:bg-slate-700 border border-stone-250 dark:border-slate-850 text-slate-800 dark:text-slate-100 font-extrabold text-lg select-none disabled:opacity-40 transition-colors cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                        
+                        <span className="text-base font-extrabold text-slate-900 dark:text-white min-w-28 text-right font-mono self-end sm:self-auto">
                           {formatRupee(denom.val * (denomCounts[denom.field] || 0))}
                         </span>
                       </div>
@@ -1436,7 +1547,7 @@ function DaybookContent() {
         </div>
 
         {/* Right Side: Sticky Summary Audit Panel (Live update) */}
-        <div className="xl:col-span-1">
+        <div className="xl:col-span-3">
           <div className="xl:sticky xl:top-6 self-start space-y-6">
             
             <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-md rounded-2xl overflow-hidden">

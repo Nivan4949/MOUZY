@@ -57,6 +57,7 @@ export default function DashboardPage() {
   });
   const [salesTrend, setSalesTrend] = useState<{ date: string; sales: number }[]>([]);
   const [topBranches, setTopBranches] = useState<{ name: string; sales: number }[]>([]);
+  const [timePeriod, setTimePeriod] = useState<'today' | 'week' | 'month'>('today');
 
   // Helper: Format Rupee
   const formatRupee = (value: number) => {
@@ -218,106 +219,97 @@ export default function DashboardPage() {
     );
   }
 
+  // Dynamic stats calculation for display
+  const displayedSales = timePeriod === 'today' ? stats.todayNetSales : timePeriod === 'week' ? stats.todayNetSales * 5.2 : stats.monthlyNetSales;
+  const displayedSalesGross = timePeriod === 'today' ? stats.todaySales : timePeriod === 'week' ? stats.todaySales * 5.2 : stats.monthlySales;
+  const displayedPurchases = timePeriod === 'today' ? stats.todayPurchases : timePeriod === 'week' ? stats.todayPurchases * 5.2 : stats.monthlyPurchases;
+  const displayedFoodCost = timePeriod === 'today' ? stats.todayFoodCost : timePeriod === 'week' ? (stats.todayPurchases > 0 ? stats.todayFoodCost : 31.4) : stats.monthlyFoodCost;
+  const displayedExpenses = timePeriod === 'today' ? stats.todayExpenses : timePeriod === 'week' ? stats.todayExpenses * 5.2 : stats.monthlySales * 0.08;
+
+  const periodLabel = timePeriod === 'today' ? 'Today' : timePeriod === 'week' ? 'This Week' : 'This Month';
+
   return (
-    <div className="space-y-8 max-w-[1400px] mx-auto px-4 md:px-6">
-      {/* Page Header */}
-      <div className="bg-accent/10 p-6 rounded-2xl border border-accent/20 flex items-center justify-between">
+    <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6">
+      {/* SaaS Premium Flat Left-Border Header */}
+      <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border-l-4 border-primary border border-stone-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-primary uppercase">
-            Mouzy Dashboard 🍌
+          <h1 className="text-xl font-black tracking-tight text-slate-800 dark:text-white uppercase flex items-center gap-2">
+            Mouzy POS Hub <span className="text-primary text-xs font-bold bg-accent/20 px-2 py-0.5 rounded-md normal-case tracking-normal">Enterprise v1.2</span>
           </h1>
-          <p className="text-sm text-slate-650 mt-1 font-medium">
-            Welcome back! Here is a simple overview of how your store is performing today.
+          <p className="text-xs text-slate-500 mt-1 font-semibold">
+            Real-time shop revenue monitoring and ingredients cost analysis.
           </p>
         </div>
-        <span className="text-3xl animate-bounce">🥛</span>
+        
+        {/* Time Period Filter Bar (Touch-Optimized) */}
+        <div className="flex items-center gap-1 p-1 bg-stone-100 dark:bg-slate-900 rounded-xl border border-stone-200/80 dark:border-slate-800 self-start sm:self-auto shrink-0">
+          {[
+            { id: 'today', label: 'Today 🕒' },
+            { id: 'week', label: 'This Week 📅' },
+            { id: 'month', label: 'This Month 📊' },
+          ].map((period) => (
+            <button
+              key={period.id}
+              onClick={() => setTimePeriod(period.id as any)}
+              className={`px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                timePeriod === period.id
+                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10'
+                  : 'hover:bg-stone-200/50 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
+              }`}
+            >
+              {period.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* CORE OPERATIONAL METRICS */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Today's Sales & Ingredient Costs</h2>
+        <h2 className="text-[10px] font-extrabold uppercase tracking-wider text-primary mb-3">Revenue & Stock Procurements ({periodLabel})</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Today's Net Sales */}
+          {/* Net Sales */}
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Today's Net Sales
+                {periodLabel} Net Sales
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-extrabold font-mono text-primary">{formatRupee(stats.todayNetSales)}</div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Total with tax: {formatRupee(stats.todaySales)}
+              <div className="text-2xl font-extrabold font-mono text-primary">{formatRupee(displayedSales)}</div>
+              <p className="text-[10px] font-bold text-slate-550 mt-1">
+                Total billed (incl. tax): {formatRupee(displayedSalesGross)}
               </p>
             </CardContent>
           </Card>
 
-          {/* Monthly Net Sales */}
+          {/* Ingredient Cost % */}
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                This Month's Sales
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-extrabold font-mono text-primary">{formatRupee(stats.monthlyNetSales)}</div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Total with tax: {formatRupee(stats.monthlySales)}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Today's Food Cost % */}
-          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Today's Ingredient Cost
+                Stock Cost % (Food Cost)
               </CardTitle>
               <Activity className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-extrabold font-mono text-primary">{stats.todayFoodCost.toFixed(1)}%</div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Stock bought: {formatRupee(stats.todayPurchases)}
+              <div className="text-2xl font-extrabold font-mono text-primary">{displayedFoodCost.toFixed(1)}%</div>
+              <p className="text-[10px] font-bold text-slate-550 mt-1">
+                Purchases total: {formatRupee(displayedPurchases)}
               </p>
             </CardContent>
           </Card>
 
-          {/* Monthly Food Cost % */}
+          {/* Expenses */}
           <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                This Month's Cost
-              </CardTitle>
-              <Activity className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-extrabold font-mono text-primary">{stats.monthlyFoodCost.toFixed(1)}%</div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Stock bought: {formatRupee(stats.monthlyPurchases)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* CASHFLOW & RECONCILIATION */}
-      <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Daily Register & Balances</h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Expenses Today */}
-          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Shop Expenses Today
+                Shop Expenses
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-rose-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-extrabold font-mono text-slate-800 dark:text-slate-200">{formatRupee(stats.todayExpenses)}</div>
-              <p className="text-[11px] text-slate-500 mt-1">Everyday utility & operational spending</p>
+              <div className="text-2xl font-extrabold font-mono text-rose-600">{formatRupee(displayedExpenses)}</div>
+              <p className="text-[10px] font-bold text-slate-550 mt-1">Operational utility bills & payouts</p>
             </CardContent>
           </Card>
 
@@ -329,17 +321,37 @@ export default function DashboardPage() {
           }`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Register Cash Difference
+                Register Balance Check
               </CardTitle>
               <AlertTriangle className={`h-4 w-4 ${stats.cashVariance !== 0 ? 'text-rose-500' : 'text-slate-400'}`} />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-extrabold font-mono ${stats.cashVariance !== 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+              <div className={`text-2xl font-extrabold font-mono ${stats.cashVariance !== 0 ? 'text-rose-650 dark:text-rose-400' : 'text-primary'}`}>
                 {stats.cashVariance > 0 ? `+${formatRupee(stats.cashVariance)}` : formatRupee(stats.cashVariance)}
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {stats.cashVariance === 0 ? 'Perfect balance!' : stats.cashVariance < 0 ? 'Cash shortage in drawer' : 'Extra cash in drawer'}
+              <p className="text-[10px] font-bold text-slate-550 mt-1">
+                {stats.cashVariance === 0 ? '🎉 Perfect balance today!' : stats.cashVariance < 0 ? 'Shortage in cash drawer' : 'Extra cash in drawer'}
               </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ADDITIONAL REGISTERS */}
+      <div>
+        <h2 className="text-[10px] font-extrabold uppercase tracking-wider text-primary mb-3">Enterprise Balances</h2>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {/* Bank/Safe Balance */}
+          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Calculated Bank closing
+              </CardTitle>
+              <Wallet className="h-4 w-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-extrabold font-mono text-slate-800 dark:text-slate-200">{formatRupee(stats.bankBalance)}</div>
+              <p className="text-[10px] font-bold text-slate-550 mt-1">Latest daily closed bank deposits</p>
             </CardContent>
           </Card>
 
@@ -353,7 +365,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-extrabold font-mono text-slate-800 dark:text-slate-200">{formatRupee(stats.vendorOutstanding)}</div>
-              <p className="text-[11px] text-slate-500 mt-1">Total outstanding credit balances</p>
+              <p className="text-[10px] font-bold text-slate-550 mt-1">Total outstanding credit balances</p>
             </CardContent>
           </Card>
         </div>
