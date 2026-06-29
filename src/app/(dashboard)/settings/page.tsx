@@ -8,17 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from '@/components/ui/table';
 import { 
   Users, 
-  Tag, 
-  Image as ImageIcon, 
-  Shield, 
-  Printer, 
   UserPlus, 
   Trash2, 
   CheckCircle,
   Building,
-  RotateCw,
-  Sliders,
-  Sparkles,
+  PlusCircle,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -31,8 +25,25 @@ interface CreatedUser {
   status: 'active' | 'inactive';
 }
 
+interface BranchItem {
+  id: string;
+  name: string;
+  code: string;
+  region: string;
+  city: string;
+  address: string;
+}
+
+const defaultBranches: BranchItem[] = [
+  { id: 'blr01', name: 'Bangalore Indiranagar', code: 'BLR01', region: 'South', city: 'Bangalore', address: '12nd Main, Indiranagar' },
+  { id: 'kch02', name: 'Kochi Kakkanad', code: 'KCH02', region: 'South', city: 'Kochi', address: 'Kakkanad, Kochi' },
+  { id: 'clt03', name: 'Calicut Bypass', code: 'CLT03', region: 'South', city: 'Calicut', address: 'Bypass Rd, Calicut' }
+];
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'user_mgmt' | 'categories' | 'photos' | 'security' | 'printer'>('user_mgmt');
+  const [activeTab, setActiveTab] = useState<'user_mgmt' | 'branch_mgmt'>('user_mgmt');
+  
+  // User Mgmt States
   const [createdUsers, setCreatedUsers] = useState<CreatedUser[]>([]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -40,17 +51,43 @@ export default function SettingsPage() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
 
-  // Load created users from local storage on mount
+  // Branch Mgmt States
+  const [createdBranches, setCreatedBranches] = useState<BranchItem[]>([]);
+  const [branchName, setBranchName] = useState('');
+  const [branchCode, setBranchCode] = useState('');
+  const [branchRegion, setBranchRegion] = useState('');
+  const [branchCity, setBranchCity] = useState('');
+  const [branchAddress, setBranchAddress] = useState('');
+  const [branchStatusMsg, setBranchStatusMsg] = useState<string | null>(null);
+
+  // Load from local storage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('mouzy_mock_created_users');
-      if (stored) {
-        setCreatedUsers(JSON.parse(stored));
+      const storedUsers = localStorage.getItem('mouzy_mock_created_users');
+      if (storedUsers) {
+        setCreatedUsers(JSON.parse(storedUsers));
+      }
+      
+      const storedBranches = localStorage.getItem('mouzy_mock_created_branches');
+      if (storedBranches) {
+        setCreatedBranches(JSON.parse(storedBranches));
       }
     }
   }, []);
 
-  // Save new user to local storage and update list
+  const allBranches: BranchItem[] = [
+    ...defaultBranches,
+    ...createdBranches
+  ];
+
+  // Set default select option if it changes
+  useEffect(() => {
+    if (allBranches.length > 0) {
+      setBranch(`${allBranches[0].name} (${allBranches[0].code})`);
+    }
+  }, [createdBranches]);
+
+  // Save new user
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
@@ -72,7 +109,6 @@ export default function SettingsPage() {
       localStorage.setItem('mouzy_mock_created_users', JSON.stringify(updated));
     }
 
-    // Clear form
     setUsername('');
     setPassword('');
     setStatusMsg(`Account "${newUser.username}" created successfully!`);
@@ -88,31 +124,67 @@ export default function SettingsPage() {
     }
   };
 
+  // Save new branch
+  const handleCreateBranch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!branchName || !branchCode || !branchCity) {
+      alert('Please fill out Name, Code, and City fields.');
+      return;
+    }
+
+    const newBranch: BranchItem = {
+      id: crypto.randomUUID(),
+      name: branchName.trim(),
+      code: branchCode.trim().toUpperCase(),
+      region: branchRegion.trim() || 'South',
+      city: branchCity.trim(),
+      address: branchAddress.trim() || ''
+    };
+
+    const updated = [...createdBranches, newBranch];
+    setCreatedBranches(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mouzy_mock_created_branches', JSON.stringify(updated));
+    }
+
+    setBranchName('');
+    setBranchCode('');
+    setBranchRegion('');
+    setBranchCity('');
+    setBranchAddress('');
+    setBranchStatusMsg(`Branch "${newBranch.name}" added successfully!`);
+    setTimeout(() => setBranchStatusMsg(null), 3000);
+  };
+
+  // Delete a branch
+  const handleDeleteBranch = (id: string) => {
+    const updated = createdBranches.filter(b => b.id !== id);
+    setCreatedBranches(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mouzy_mock_created_branches', JSON.stringify(updated));
+    }
+  };
+
   const tabs = [
     { id: 'user_mgmt', name: 'User Management', icon: Users },
-    { id: 'categories', name: 'Categories', icon: Tag },
-    { id: 'photos', name: 'Product Photos', icon: ImageIcon },
-    { id: 'security', name: 'Security & Password', icon: Shield },
-    { id: 'printer', name: 'Printer Setup', icon: Printer },
+    { id: 'branch_mgmt', name: 'Branch Management', icon: Building },
   ] as const;
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6 font-sans select-none">
       
       {/* Page Header */}
-      <div className="border-b border-stone-200 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-855 dark:text-white uppercase tracking-tight">
-            System Settings
-          </h1>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-            Configure system rules, terminal credentials, product catalogues and printers.
-          </p>
-        </div>
+      <div className="border-b border-stone-200 dark:border-slate-800 pb-4">
+        <h1 className="text-2xl font-black text-slate-855 dark:text-white uppercase tracking-tight">
+          System Settings
+        </h1>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+          Configure active branch outlets and login credential keys.
+        </p>
       </div>
 
-      {/* Horizontal Tabs Selection Card - Replicated from Screenshot */}
-      <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5 rounded-2xl shadow-sm flex flex-wrap gap-2 items-center">
+      {/* Tabs list (Simplified to User & Branch Mgmt) */}
+      <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 p-2.5 rounded-2xl shadow-sm flex flex-wrap gap-2 items-center">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -133,26 +205,26 @@ export default function SettingsPage() {
         })}
       </div>
 
-      {/* Tabs Content */}
+      {/* Tab Panels */}
       <div className="min-h-[50vh]">
         
-        {/* User Management Tab */}
+        {/* Tab 1: User Management */}
         {activeTab === 'user_mgmt' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
             
-            {/* Accounts Registry List */}
+            {/* Accounts list */}
             <Card className="lg:col-span-2 border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-              <CardHeader className="border-b border-slate-100 dark:border-slate-900 bg-slate-50/20 py-4">
+              <CardHeader className="border-b border-slate-105 dark:border-slate-900 bg-slate-50/20 py-4">
                 <CardTitle className="text-sm font-black tracking-wider uppercase text-slate-855 dark:text-white">
                   Active Accounts Registry
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  List of branches managers and cashiers authorized to log in.
+                  List of managers and cashiers authorized to access terminals.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850">
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850 sticky top-0">
                     <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-850">
                       <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-6">Username</TableHead>
                       <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Branch Outlet</TableHead>
@@ -179,7 +251,7 @@ export default function SettingsPage() {
                       </TableCell>
                     </TableRow>
 
-                    {/* Created Users list */}
+                    {/* Custom Users */}
                     {createdUsers.map((user) => (
                       <TableRow key={user.id} className="border-slate-100 dark:border-slate-900">
                         <TableCell className="text-xs font-bold text-slate-850 dark:text-slate-200 py-3.5 pl-6 font-mono">
@@ -218,7 +290,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Create New User Card */}
+            {/* Create User Form */}
             <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
               <CardHeader className="border-b border-slate-100 dark:border-slate-900 bg-slate-50/20 py-4">
                 <CardTitle className="text-sm font-black tracking-wider uppercase text-slate-855 dark:text-white flex items-center gap-2">
@@ -238,7 +310,7 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Branch select */}
+                  {/* Branch selection */}
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                       Branch
@@ -248,9 +320,11 @@ export default function SettingsPage() {
                       value={branch}
                       onChange={(e) => setBranch(e.target.value)}
                     >
-                      <option value="Bangalore Indiranagar (BLR01)">Bangalore Indiranagar (BLR01)</option>
-                      <option value="Kochi Kakkanad (KCH02)">Kochi Kakkanad (KCH02)</option>
-                      <option value="Calicut Bypass (CLT03)">Calicut Bypass (CLT03)</option>
+                      {allBranches.map((b) => (
+                        <option key={b.id} value={`${b.name} (${b.code})`}>
+                          {b.name} ({b.code})
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -303,88 +377,194 @@ export default function SettingsPage() {
                 </CardFooter>
               </form>
             </Card>
-
           </div>
         )}
 
-        {/* Categories Tab Placeholder */}
-        {activeTab === 'categories' && (
-          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
-              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
-                <Tag size={16} className="text-[#2e7d32]" />
-                <span>POS Categories Management</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Create and group items categories on the billing screen layout.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
-              <Sliders size={32} className="text-slate-350 mb-3" />
-              <p className="text-xs font-semibold uppercase tracking-wider">POS Menu Categories Configuration</p>
-              <p className="text-[10px] text-slate-500 mt-1">Configured items are synchronized to terminal registers.</p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Tab 2: Branch Management */}
+        {activeTab === 'branch_mgmt' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+            
+            {/* Branches Registry List */}
+            <Card className="lg:col-span-2 border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+              <CardHeader className="border-b border-slate-100 dark:border-slate-900 bg-slate-50/20 py-4">
+                <CardTitle className="text-sm font-black tracking-wider uppercase text-slate-855 dark:text-white">
+                  Active Branch Outlets
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Registry of physical store branches connected to the central ERP.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850">
+                    <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-850">
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-6">Branch Name</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Code</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Region</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">City</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-right pr-6">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Render default branches */}
+                    {defaultBranches.map((b) => (
+                      <TableRow key={b.id} className="border-slate-100 dark:border-slate-900">
+                        <TableCell className="text-xs font-bold text-slate-800 dark:text-slate-200 py-3.5 pl-6 font-sans">
+                          {b.name}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-slate-700 dark:text-slate-350 py-3.5">
+                          {b.code}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-700 dark:text-slate-350 py-3.5">
+                          {b.region}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-750 dark:text-slate-350 py-3.5">
+                          {b.city}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 py-3.5 text-slate-400 text-xs italic">
+                          System Default
+                        </TableCell>
+                      </TableRow>
+                    ))}
 
-        {/* Product Photos Tab Placeholder */}
-        {activeTab === 'photos' && (
-          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
-              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
-                <ImageIcon size={16} className="text-[#2e7d32]" />
-                <span>Product Asset Manager</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Upload and configure thumbnail images displayed on register grids.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
-              <Sparkles size={32} className="text-slate-350 mb-3" />
-              <p className="text-xs font-semibold uppercase tracking-wider">Product Catalog Photos Library</p>
-              <p className="text-[10px] text-slate-500 mt-1">Images are compressed and cached locally on POS hardware for offline access.</p>
-            </CardContent>
-          </Card>
-        )}
+                    {/* Render custom created branches */}
+                    {createdBranches.map((b) => (
+                      <TableRow key={b.id} className="border-slate-100 dark:border-slate-900">
+                        <TableCell className="text-xs font-bold text-slate-850 dark:text-slate-200 py-3.5 pl-6 font-sans">
+                          {b.name}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-slate-700 dark:text-slate-350 py-3.5">
+                          {b.code}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-700 dark:text-slate-350 py-3.5">
+                          {b.region}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-750 dark:text-slate-350 py-3.5">
+                          {b.city}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 py-3.5">
+                          <Button 
+                            onClick={() => handleDeleteBranch(b.id)}
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
-        {/* Security & Password Tab Placeholder */}
-        {activeTab === 'security' && (
-          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
-              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
-                <Shield size={16} className="text-[#2e7d32]" />
-                <span>Security Policies & Key Locks</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Configure override password, audit roles, and system session lock timeouts.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
-              <Shield size={32} className="text-slate-350 mb-3" />
-              <p className="text-xs font-semibold uppercase tracking-wider">Security overrides and PIN keys</p>
-              <p className="text-[10px] text-slate-500 mt-1">Configure manager overrides PIN codes for drawer openings.</p>
-            </CardContent>
-          </Card>
-        )}
+            {/* Create New Branch Form */}
+            <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+              <CardHeader className="border-b border-slate-100 dark:border-slate-900 bg-slate-50/20 py-4">
+                <CardTitle className="text-sm font-black tracking-wider uppercase text-slate-855 dark:text-white flex items-center gap-2">
+                  <PlusCircle size={16} className="text-[#2e7d32]" />
+                  <span>Add New Branch</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Connect a new branch outlet location to ERP records.
+                </CardDescription>
+              </CardHeader>
+              <form onSubmit={handleCreateBranch}>
+                <CardContent className="space-y-3.5 pt-6">
+                  {branchStatusMsg && (
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-3 text-xs font-bold text-emerald-700 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-900/50 flex items-center gap-1.5 justify-center">
+                      <CheckCircle size={14} />
+                      <span>{branchStatusMsg}</span>
+                    </div>
+                  )}
 
-        {/* Printer Setup Tab Placeholder */}
-        {activeTab === 'printer' && (
-          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
-              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
-                <Printer size={16} className="text-[#2e7d32]" />
-                <span>Thermal Printer Setup</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Connect thermal receipt and KOT printers via network IP or USB connection.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
-              <Printer size={32} className="text-slate-350 mb-3" />
-              <p className="text-xs font-semibold uppercase tracking-wider">Printer Registers configuration</p>
-              <p className="text-[10px] text-slate-500 mt-1">Supports standard 80mm ESC/POS command printing.</p>
-            </CardContent>
-          </Card>
+                  {/* Branch Name */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="branch-name" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Branch Name
+                    </Label>
+                    <Input
+                      id="branch-name"
+                      type="text"
+                      placeholder="e.g. Chennai OMR"
+                      value={branchName}
+                      onChange={(e) => setBranchName(e.target.value)}
+                      className="h-11 font-semibold text-xs rounded-xl"
+                    />
+                  </div>
+
+                  {/* Branch Code */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="branch-code" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Branch Code
+                    </Label>
+                    <Input
+                      id="branch-code"
+                      type="text"
+                      placeholder="e.g. CHN04"
+                      value={branchCode}
+                      onChange={(e) => setBranchCode(e.target.value)}
+                      className="h-11 font-semibold text-xs rounded-xl"
+                    />
+                  </div>
+
+                  {/* Region & City */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="branch-region" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Region
+                      </Label>
+                      <Input
+                        id="branch-region"
+                        type="text"
+                        placeholder="South"
+                        value={branchRegion}
+                        onChange={(e) => setBranchRegion(e.target.value)}
+                        className="h-11 font-semibold text-xs rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="branch-city" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        City
+                      </Label>
+                      <Input
+                        id="branch-city"
+                        type="text"
+                        placeholder="Chennai"
+                        value={branchCity}
+                        onChange={(e) => setBranchCity(e.target.value)}
+                        className="h-11 font-semibold text-xs rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="branch-address" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Local Address
+                    </Label>
+                    <Input
+                      id="branch-address"
+                      type="text"
+                      placeholder="Old Mahabalipuram Rd, Chennai"
+                      value={branchAddress}
+                      onChange={(e) => setBranchAddress(e.target.value)}
+                      className="h-11 font-semibold text-xs rounded-xl"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t border-slate-100 dark:border-slate-900 bg-slate-50/10 py-3.5 px-6">
+                  <Button 
+                    type="submit" 
+                    className="bg-[#2e7d32] hover:bg-[#276e2a] text-white font-black uppercase tracking-wider text-xs rounded-xl w-full h-11 transition-colors"
+                  >
+                    Create Branch
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </div>
         )}
 
       </div>
