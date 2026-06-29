@@ -57,10 +57,10 @@ function NavigationList({ pathname, onClick }: { pathname: string; onClick: () =
           <Link
             key={item.name}
             href={item.href}
-            className={`flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${
+            className={`flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 border-l-4 ${
               isActive 
-                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/10' 
-                : 'text-slate-650 hover:bg-primary/5 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-900/50 dark:hover:text-emerald-400'
+                ? 'bg-[#0b522c] text-white shadow-sm border-[#ffd600]' 
+                : 'text-slate-400 border-transparent hover:bg-slate-800/60 hover:text-white'
             }`}
             onClick={onClick}
           >
@@ -107,41 +107,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Sidebar Navigation */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-250 bg-white dark:border-slate-800 dark:bg-slate-950 transition-transform duration-300 lg:static lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-800 bg-[#0f172a] transition-transform duration-300 lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 bg-accent/5">
+        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800 bg-slate-950/25">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-primary shadow-sm border border-primary/10">
-              <svg className="h-7 w-7" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#ffd600] text-[#0b522c] shadow-md border border-[#ffd600]/10">
+              <svg className="h-6 w-6" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 {/* Banana Smile Curve */}
-                <path d="M15,40 Q50,85 85,40 Q50,65 15,40 Z" className="fill-primary" />
+                <path d="M15,40 Q50,85 85,40 Q50,65 15,40 Z" fill="currentColor" />
                 {/* Spoon Handle */}
-                <path d="M48,15 L52,15 L52,50 L48,50 Z" className="fill-primary" stroke="currentColor" strokeWidth="1" />
+                <path d="M48,15 L52,15 L52,50 L48,50 Z" fill="currentColor" stroke="currentColor" strokeWidth="1" />
                 {/* Spoon Top */}
-                <ellipse cx="50" cy="15" rx="5" ry="3" className="fill-primary" />
-                {/* Fruits */}
-                <circle cx="30" cy="45" r="3" fill="#EF4444" />
-                <circle cx="70" cy="45" r="3.5" fill="#EF4444" />
-                <circle cx="38" cy="52" r="3" fill="#F97316" />
-                <circle cx="62" cy="52" r="2.5" fill="#F97316" />
-                <circle cx="43" cy="43" r="2.5" fill="#8B5CF6" />
-                <circle cx="57" cy="43" r="2.5" fill="#8B5CF6" />
+                <ellipse cx="50" cy="15" rx="5" ry="3" fill="currentColor" />
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-black tracking-tight text-primary uppercase leading-none">
-                Mouzy
+              <span className="text-base font-black tracking-tight text-[#ffd600] uppercase leading-none">
+                MOUZY
               </span>
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none mt-0.5">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mt-1">
                 Banana Avil Milk
               </span>
             </div>
           </Link>
           <button 
             onClick={() => setSidebarOpen(false)}
-            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-900"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
@@ -153,23 +146,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Suspense>
 
         {/* User Footer Profile */}
-        <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-950/50">
+        <div className="border-t border-slate-800 p-4 bg-slate-950/20">
           <div className="flex items-center gap-3 mb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-500">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-slate-300">
               <User className="h-4 w-4" />
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
+              <p className="text-xs font-semibold text-slate-200 truncate">
                 Branch Manager
               </p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-500 truncate">
+              <p className="text-[10px] text-slate-500 truncate">
                 {userEmail}
               </p>
             </div>
           </div>
           <button
             onClick={handleSignOut}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-950/20 transition-colors"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
