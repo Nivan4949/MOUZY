@@ -1,149 +1,379 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from '@/components/ui/table';
 import { 
-  Building, 
-  DollarSign, 
-  Settings as SettingsIcon, 
-  CloudLightning,
-  AlertTriangle,
-  RotateCw
+  Users, 
+  Tag, 
+  Image as ImageIcon, 
+  Shield, 
+  Printer, 
+  UserPlus, 
+  Trash2, 
+  CheckCircle,
+  Building,
+  RotateCw,
+  Sliders,
+  Sparkles
 } from 'lucide-react';
 
+interface CreatedUser {
+  id: string;
+  username: string;
+  password?: string;
+  branch: string;
+  status: 'active' | 'inactive';
+}
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<'user_mgmt' | 'categories' | 'photos' | 'security' | 'printer'>('user_mgmt');
+  const [createdUsers, setCreatedUsers] = useState<CreatedUser[]>([]);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [branch, setBranch] = useState('Bangalore Indiranagar (BLR01)');
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  // Load created users from local storage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('mouzy_mock_created_users');
+      if (stored) {
+        setCreatedUsers(JSON.parse(stored));
+      }
+    }
+  }, []);
+
+  // Save new user to local storage and update list
+  const handleCreateUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) {
+      alert('Please fill out username and password fields.');
+      return;
+    }
+
+    const newUser: CreatedUser = {
+      id: crypto.randomUUID(),
+      username: username.trim(),
+      password: password,
+      branch: branch,
+      status: 'active'
+    };
+
+    const updated = [...createdUsers, newUser];
+    setCreatedUsers(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mouzy_mock_created_users', JSON.stringify(updated));
+    }
+
+    // Clear form
+    setUsername('');
+    setPassword('');
+    setStatusMsg(`Account "${newUser.username}" created successfully!`);
+    setTimeout(() => setStatusMsg(null), 3000);
+  };
+
+  // Delete a user
+  const handleDeleteUser = (id: string) => {
+    const updated = createdUsers.filter(u => u.id !== id);
+    setCreatedUsers(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mouzy_mock_created_users', JSON.stringify(updated));
+    }
+  };
+
+  const tabs = [
+    { id: 'user_mgmt', name: 'User Management', icon: Users },
+    { id: 'categories', name: 'Categories', icon: Tag },
+    { id: 'photos', name: 'Product Photos', icon: ImageIcon },
+    { id: 'security', name: 'Security & Password', icon: Shield },
+    { id: 'printer', name: 'Printer Setup', icon: Printer },
+  ] as const;
+
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6">
-      {/* Header */}
-      <div className="border-b border-stone-200 dark:border-slate-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">System Settings</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Configure ERP tenant accounts, regional branch controls, petty cash rules, and data sync frequencies.
-        </p>
+    <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6 font-sans select-none">
+      
+      {/* Page Header */}
+      <div className="border-b border-stone-200 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-855 dark:text-white uppercase tracking-tight">
+            System Settings
+          </h1>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+            Configure system rules, terminal credentials, product catalogues and printers.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Horizontal Tabs Selection Card - Replicated from Screenshot */}
+      <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5 rounded-2xl shadow-sm flex flex-wrap gap-2 items-center">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors ${
+                isActive 
+                  ? 'bg-[#2e7d32] text-white shadow-sm' 
+                  : 'bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-900'
+              }`}
+            >
+              <Icon size={14} className={isActive ? 'text-white' : 'text-slate-550'} />
+              <span>{tab.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tabs Content */}
+      <div className="min-h-[50vh]">
         
-        {/* Tenant Configuration */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-            <CardTitle className="text-base font-bold tracking-tight flex items-center gap-2 text-slate-850 dark:text-white">
-              <Building className="h-5 w-5 text-primary" />
-              <span>Tenant Profile</span>
-            </CardTitle>
-            <CardDescription className="text-xs">Manage your brand and active ERP domain settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tenant Name</Label>
-              <Input defaultValue="Mouzy Outlets Group" disabled className="h-11 font-semibold" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subdomain</Label>
-              <div className="flex rounded-xl shadow-sm border border-stone-200 bg-stone-50/20 overflow-hidden">
-                <span className="inline-flex items-center px-3 text-stone-500 text-sm border-r border-stone-200 select-none bg-stone-50">
-                  https://
-                </span>
-                <Input defaultValue="mouzy" disabled className="border-0 focus-visible:ring-0 shadow-none rounded-none h-11 font-semibold" />
-                <span className="inline-flex items-center px-3 text-stone-500 text-sm border-l border-stone-200 select-none bg-stone-50">
-                  .mouzyerp.com
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* User Management Tab */}
+        {activeTab === 'user_mgmt' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Accounts Registry List */}
+            <Card className="lg:col-span-2 border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+              <CardHeader className="border-b border-slate-100 dark:border-slate-900 bg-slate-50/20 py-4">
+                <CardTitle className="text-sm font-black tracking-wider uppercase text-slate-855 dark:text-white">
+                  Active Accounts Registry
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  List of branches managers and cashiers authorized to log in.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850">
+                    <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-850">
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider pl-6">Username</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Branch Outlet</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Status</TableHead>
+                      <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-right pr-6">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Default Manager User */}
+                    <TableRow className="border-slate-100 dark:border-slate-900">
+                      <TableCell className="text-xs font-bold text-slate-800 dark:text-slate-200 py-3.5 pl-6 font-mono">
+                        mouzy@mouzyerp.com
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-700 dark:text-slate-350 py-3.5">
+                        Bangalore Indiranagar (BLR01)
+                      </TableCell>
+                      <TableCell className="py-3.5">
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 ring-1 ring-inset ring-emerald-600/10 dark:bg-emerald-950/20 dark:text-emerald-450">
+                          Active (Default)
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right pr-6 py-3.5 text-slate-400 text-xs italic">
+                        System Locked
+                      </TableCell>
+                    </TableRow>
 
-        {/* Branch Controls */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-            <CardTitle className="text-base font-bold tracking-tight flex items-center gap-2 text-slate-850 dark:text-white">
-              <SettingsIcon className="h-5 w-5 text-primary" />
-              <span>Outlet Configurations</span>
-            </CardTitle>
-            <CardDescription className="text-xs">Configure parameters specific to this local branch outlet</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Branch Code</Label>
-                <Input defaultValue="BLR01" disabled className="h-11 font-semibold" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Branch Region</Label>
-                <Input defaultValue="South (Bangalore)" disabled className="h-11 font-semibold" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Local Address</Label>
-              <Input defaultValue="12nd Main, Indiranagar, Bangalore" disabled className="h-11 font-semibold" />
-            </div>
-          </CardContent>
-        </Card>
+                    {/* Created Users list */}
+                    {createdUsers.map((user) => (
+                      <TableRow key={user.id} className="border-slate-100 dark:border-slate-900">
+                        <TableCell className="text-xs font-bold text-slate-850 dark:text-slate-200 py-3.5 pl-6 font-mono">
+                          {user.username}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-750 dark:text-slate-350 py-3.5">
+                          {user.branch}
+                        </TableCell>
+                        <TableCell className="py-3.5">
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 ring-1 ring-inset ring-emerald-600/10 dark:bg-emerald-950/20 dark:text-emerald-450">
+                            Active
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right pr-6 py-3.5">
+                          <Button 
+                            onClick={() => handleDeleteUser(user.id)}
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
 
-        {/* Petty Cash Rules */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-            <CardTitle className="text-base font-bold tracking-tight flex items-center gap-2 text-slate-850 dark:text-white">
-              <DollarSign className="h-5 w-5 text-primary" />
-              <span>Petty Cash Thresholds</span>
-            </CardTitle>
-            <CardDescription className="text-xs">Define limits requiring HQ approval overrides</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Petty Cash Expense Limit (₹)</Label>
-              <Input defaultValue="1500.00" className="h-11 font-semibold" />
-              <p className="text-[10px] text-stone-400 mt-1 flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span>Expenses exceeding this value require Area Manager/HQ override approval.</span>
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Expected Float Reserve (₹)</Label>
-              <Input defaultValue="10000.00" className="h-11 font-semibold" />
-            </div>
-          </CardContent>
-          <CardFooter className="border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-3.5 px-6">
-            <Button className="bg-primary hover:bg-primary/95 text-primary-foreground font-semibold rounded-xl w-full h-11">
-              Save Rule Policies
-            </Button>
-          </CardFooter>
-        </Card>
+                    {createdUsers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-6 text-slate-400 dark:text-slate-600 text-xs font-semibold">
+                          No custom user accounts created. Use the form to add branch staff.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
-        {/* Database & Local Sync */}
-        <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
-          <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-            <CardTitle className="text-base font-bold tracking-tight flex items-center gap-2 text-slate-850 dark:text-white">
-              <CloudLightning className="h-5 w-5 text-primary" />
-              <span>Offline Datastore & Sync</span>
-            </CardTitle>
-            <CardDescription className="text-xs">Monitor status of browser-cache syncing</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6 text-sm text-slate-650 dark:text-slate-400 font-medium">
-            <div className="flex justify-between items-center p-3 rounded-xl border border-stone-100 bg-stone-50/10">
-              <span>Active Database Connection</span>
-              <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-600/10 dark:bg-amber-950/20 dark:text-amber-400">
-                Mock Mode (Fallback Active)
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-xl border border-stone-100 bg-stone-50/10">
-              <span>Daybook Cache Count</span>
-              <span className="font-mono font-bold text-slate-850">17 Local Records</span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-xl border border-stone-100 bg-stone-50/10">
-              <span>Last Synchronized Timestamp</span>
-              <span className="font-mono text-xs">Just now</span>
-            </div>
-          </CardContent>
-          <CardFooter className="border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-3.5 px-6">
-            <Button variant="outline" className="border-stone-300 hover:bg-stone-50 font-semibold rounded-xl w-full h-11 flex items-center justify-center gap-2 text-slate-800 bg-white dark:bg-slate-900 dark:border-slate-850 dark:text-slate-100">
-              <RotateCw className="h-4 w-4" /> Purge Local Cache & Refresh
-            </Button>
-          </CardFooter>
-        </Card>
+            {/* Create New User Card */}
+            <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+              <CardHeader className="border-b border-slate-100 dark:border-slate-900 bg-slate-50/20 py-4">
+                <CardTitle className="text-sm font-black tracking-wider uppercase text-slate-855 dark:text-white flex items-center gap-2">
+                  <UserPlus size={16} className="text-[#2e7d32]" />
+                  <span>Create New User</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Create system access for cashiers and branch managers
+                </CardDescription>
+              </CardHeader>
+              <form onSubmit={handleCreateUser}>
+                <CardContent className="space-y-4 pt-6">
+                  {statusMsg && (
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-3 text-xs font-bold text-emerald-700 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-900/50 flex items-center gap-1.5 justify-center">
+                      <CheckCircle size={14} />
+                      <span>{statusMsg}</span>
+                    </div>
+                  )}
+
+                  {/* Branch select */}
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Branch
+                    </Label>
+                    <select
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-350 p-2.5 rounded-xl text-xs font-semibold focus:ring-1 focus:ring-[#2e7d32] focus:border-[#2e7d32] outline-none h-11"
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                    >
+                      <option value="Bangalore Indiranagar (BLR01)">Bangalore Indiranagar (BLR01)</option>
+                      <option value="Kochi Kakkanad (KCH02)">Kochi Kakkanad (KCH02)</option>
+                      <option value="Calicut Bypass (CLT03)">Calicut Bypass (CLT03)</option>
+                    </select>
+                  </div>
+
+                  {/* Username */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-username" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Username
+                    </Label>
+                    <Input
+                      id="new-username"
+                      type="text"
+                      placeholder="e.g. cashier.blr01"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="h-11 font-semibold text-xs rounded-xl"
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-password" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Password
+                    </Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="h-11 font-semibold text-xs rounded-xl"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t border-slate-100 dark:border-slate-900 bg-slate-50/10 py-3.5 px-6">
+                  <Button 
+                    type="submit" 
+                    className="bg-[#2e7d32] hover:bg-[#276e2a] text-white font-black uppercase tracking-wider text-xs rounded-xl w-full h-11 transition-colors"
+                  >
+                    Create System User
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+
+          </div>
+        )}
+
+        {/* Categories Tab Placeholder */}
+        {activeTab === 'categories' && (
+          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
+              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
+                <Tag size={16} className="text-[#2e7d32]" />
+                <span>POS Categories Management</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Create and group items categories on the billing screen layout.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
+              <Sliders size={32} className="text-slate-350 mb-3" />
+              <p className="text-xs font-semibold uppercase tracking-wider">POS Menu Categories Configuration</p>
+              <p className="text-[10px] text-slate-500 mt-1">Configured items are synchronized to terminal registers.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Product Photos Tab Placeholder */}
+        {activeTab === 'photos' && (
+          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
+              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
+                <ImageIcon size={16} className="text-[#2e7d32]" />
+                <span>Product Asset Manager</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Upload and configure thumbnail images displayed on register grids.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
+              <Sparkles size={32} className="text-slate-350 mb-3" />
+              <p className="text-xs font-semibold uppercase tracking-wider">Product Catalog Photos Library</p>
+              <p className="text-[10px] text-slate-500 mt-1">Images are compressed and cached locally on POS hardware for offline access.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Security & Password Tab Placeholder */}
+        {activeTab === 'security' && (
+          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
+              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
+                <Shield size={16} className="text-[#2e7d32]" />
+                <span>Security Policies & Key Locks</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Configure override password, audit roles, and system session lock timeouts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
+              <Shield size={32} className="text-slate-350 mb-3" />
+              <p className="text-xs font-semibold uppercase tracking-wider">Security overrides and PIN keys</p>
+              <p className="text-[10px] text-slate-500 mt-1">Configure manager overrides PIN codes for drawer openings.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Printer Setup Tab Placeholder */}
+        {activeTab === 'printer' && (
+          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl">
+            <CardHeader className="py-4 border-b border-slate-100 dark:border-slate-900">
+              <CardTitle className="text-sm font-black tracking-wider uppercase flex items-center gap-2">
+                <Printer size={16} className="text-[#2e7d32]" />
+                <span>Thermal Printer Setup</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Connect thermal receipt and KOT printers via network IP or USB connection.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="py-12 flex flex-col items-center justify-center text-slate-400">
+              <Printer size={32} className="text-slate-350 mb-3" />
+              <p className="text-xs font-semibold uppercase tracking-wider">Printer Registers configuration</p>
+              <p className="text-[10px] text-slate-500 mt-1">Supports standard 80mm ESC/POS command printing.</p>
+            </CardContent>
+          </Card>
+        )}
 
       </div>
     </div>

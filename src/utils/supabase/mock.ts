@@ -469,10 +469,30 @@ export class MockSupabaseClient {
     },
     signInWithPassword: async ({ email, password }: any) => {
       const normalizedEmail = email?.toLowerCase().trim();
-      const isUserMatch = normalizedEmail === 'mouzy' || normalizedEmail === 'mouzy@mouzyerp.com';
-      const isPasswordMatch = password === 'Mouzy@123';
+      
+      // Check default credentials
+      const isDefaultUser = normalizedEmail === 'mouzy' || normalizedEmail === 'mouzy@mouzyerp.com';
+      const isDefaultPassword = password === 'Mouzy@123';
 
-      if (!isUserMatch || !isPasswordMatch) {
+      let matchedUser: any = null;
+      let isPasswordMatch = false;
+      let userEmail = 'mouzy@mouzyerp.com';
+
+      if (isDefaultUser && isDefaultPassword) {
+        isPasswordMatch = true;
+      } else if (typeof window !== 'undefined') {
+        const createdUsersRaw = localStorage.getItem('mouzy_mock_created_users') || '[]';
+        const createdUsers = JSON.parse(createdUsersRaw);
+        matchedUser = createdUsers.find(
+          (u: any) => u.username.toLowerCase() === normalizedEmail || `${u.username.toLowerCase()}@mouzyerp.com` === normalizedEmail
+        );
+        if (matchedUser && matchedUser.password === password) {
+          isPasswordMatch = true;
+          userEmail = matchedUser.username.includes('@') ? matchedUser.username : `${matchedUser.username}@mouzyerp.com`;
+        }
+      }
+
+      if (!isPasswordMatch) {
         return { 
           data: { user: null }, 
           error: { message: 'Invalid credentials. Please use username "mouzy" and password "Mouzy@123".' } 
@@ -482,13 +502,13 @@ export class MockSupabaseClient {
       const role = 'super_admin';
       if (typeof window !== 'undefined') {
         localStorage.setItem('sb-mock-logged-in', 'true');
-        localStorage.setItem('sb-mock-email', 'mouzy@mouzyerp.com');
+        localStorage.setItem('sb-mock-email', userEmail);
         localStorage.setItem('sb-mock-role', role);
         document.cookie = `sb-mock-session=true; path=/; max-age=36000`;
         document.cookie = `sb-mock-role=${role}; path=/; max-age=36000`;
-        document.cookie = `sb-mock-email=mouzy@mouzyerp.com; path=/; max-age=36000`;
+        document.cookie = `sb-mock-email=${userEmail}; path=/; max-age=36000`;
       }
-      return { data: { user: { ...MOCK_USER, email: 'mouzy@mouzyerp.com', user_metadata: { ...MOCK_USER.user_metadata, app_role: role } } }, error: null };
+      return { data: { user: { ...MOCK_USER, email: userEmail, user_metadata: { ...MOCK_USER.user_metadata, app_role: role } } }, error: null };
     },
     signOut: async () => {
       if (typeof window !== 'undefined') {
