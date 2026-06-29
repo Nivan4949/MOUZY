@@ -18,7 +18,9 @@ import {
   Building,
   RotateCw,
   Sliders,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface CreatedUser {
@@ -36,6 +38,7 @@ export default function SettingsPage() {
   const [password, setPassword] = useState('');
   const [branch, setBranch] = useState('Bangalore Indiranagar (BLR01)');
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   // Load created users from local storage on mount
   useEffect(() => {
@@ -267,18 +270,27 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Password */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 font-sans">
                     <Label htmlFor="new-password" className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                       Password
                     </Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="h-11 font-semibold text-xs rounded-xl"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="new-password"
+                        type={showCreatePassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="h-11 font-semibold text-xs rounded-xl pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCreatePassword(!showCreatePassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {showCreatePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter className="border-t border-slate-100 dark:border-slate-900 bg-slate-50/10 py-3.5 px-6">
