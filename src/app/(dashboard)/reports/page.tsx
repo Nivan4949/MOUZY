@@ -15,7 +15,8 @@ import {
   Clock, 
   CheckCircle2, 
   RefreshCw, 
-  AlertTriangle 
+  AlertTriangle,
+  Search
 } from 'lucide-react';
 
 interface ReportTemplate {
@@ -46,6 +47,8 @@ export default function ReportsPage() {
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportSearchQuery, setReportSearchQuery] = useState('');
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<'all' | 'operations' | 'finance' | 'audit'>('all');
 
   // Async Jobs
   const [jobs, setJobs] = useState<any[]>([]);
@@ -201,6 +204,25 @@ export default function ReportsPage() {
 
   const selectedReport = availableReports.find(r => r.id === selectedReportId);
 
+  // Real-time filtering and searching of reports
+  const filteredReports = availableReports.filter(report => {
+    const matchesCategory = selectedCategoryTab === 'all' || report.category === selectedCategoryTab;
+    const matchesSearch = report.name.toLowerCase().includes(reportSearchQuery.toLowerCase()) ||
+                          report.description.toLowerCase().includes(reportSearchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const getCategoryBadge = (category: 'operations' | 'finance' | 'audit') => {
+    switch (category) {
+      case 'operations':
+        return <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Ops 🛒</span>;
+      case 'finance':
+        return <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/20 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Fin 🏦</span>;
+      case 'audit':
+        return <span className="inline-flex items-center rounded-md bg-purple-50 dark:bg-purple-950/20 px-2 py-0.5 text-[9px] font-extrabold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Audit 🛡️</span>;
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -217,24 +239,67 @@ export default function ReportsPage() {
         {/* Left Side: Report Selectors & Parameters */}
         <div className="space-y-6">
           <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-            <CardHeader>
+            <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-900">
               <CardTitle className="text-sm font-semibold uppercase text-slate-500 tracking-wider">Report Registry</CardTitle>
+              <div className="relative mt-3">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search report name..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary outline-none"
+                  value={reportSearchQuery}
+                  onChange={(e) => setReportSearchQuery(e.target.value)}
+                />
+              </div>
+
+              {/* Category Tab Selector */}
+              <div className="flex gap-1 mt-3 bg-slate-50 dark:bg-slate-900 p-1 rounded-lg border border-slate-150 dark:border-slate-850 overflow-x-auto scrollbar-none">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'operations', label: 'Ops' },
+                  { id: 'finance', label: 'Fin' },
+                  { id: 'audit', label: 'Audit' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setSelectedCategoryTab(tab.id as any)}
+                    className={`flex-1 text-center py-1 text-[9px] font-black uppercase tracking-wider rounded transition-all cursor-pointer ${
+                      selectedCategoryTab === tab.id
+                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-650'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {availableReports.map((report) => (
-                <button
-                  key={report.id}
-                  onClick={() => setSelectedReportId(report.id)}
-                  className={`w-full text-left p-3 rounded-md transition-colors text-sm ${
-                    selectedReportId === report.id
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 font-semibold'
-                      : 'hover:bg-slate-50 text-slate-700 dark:text-slate-400 dark:hover:bg-slate-900'
-                  }`}
-                >
-                  <p className="font-semibold">{report.name}</p>
-                  <p className="text-xs text-slate-400 font-normal mt-0.5">{report.description}</p>
-                </button>
-              ))}
+            <CardContent className="space-y-1.5 pt-4 max-h-[480px] overflow-y-auto custom-scrollbar">
+              {filteredReports.length > 0 ? (
+                filteredReports.map((report) => (
+                  <button
+                    key={report.id}
+                    onClick={() => setSelectedReportId(report.id)}
+                    className={`w-full text-left p-3.5 rounded-xl transition-all border duration-200 ${
+                      selectedReportId === report.id
+                        ? 'bg-emerald-50/30 border-emerald-500/25 dark:bg-emerald-950/10 dark:border-emerald-550/20 shadow-sm'
+                        : 'hover:bg-slate-50/60 dark:hover:bg-slate-900/40 border-transparent'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <p className={`font-semibold text-xs ${selectedReportId === report.id ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-850 dark:text-slate-205'}`}>
+                        {report.name}
+                      </p>
+                      <div className="shrink-0">{getCategoryBadge(report.category)}</div>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-450 font-normal mt-1 leading-snug">
+                      {report.description}
+                    </p>
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-8 text-xs text-slate-400">No reports match your filters.</div>
+              )}
             </CardContent>
           </Card>
         </div>
