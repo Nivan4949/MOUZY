@@ -12,17 +12,22 @@ export async function middleware(request: NextRequest) {
   let user: any = null;
 
   if (isMock) {
-    const mockRole = request.cookies.get('sb-mock-role')?.value || 'super_admin';
-    const mockEmail = request.cookies.get('sb-mock-email')?.value || 'manager.402@mouzyerp.com';
-    user = { 
-      id: '00000000-0000-0000-0000-000000000099', 
-      email: mockEmail,
-      user_metadata: {
-        tenant_id: '00000000-0000-0000-0000-000000000001',
-        branch_id: '00000000-0000-0000-0000-000000000010',
-        app_role: mockRole
-      }
-    };
+    const session = request.cookies.get('sb-mock-session')?.value;
+    if (session === 'true') {
+      const mockRole = request.cookies.get('sb-mock-role')?.value || 'super_admin';
+      const mockEmail = request.cookies.get('sb-mock-email')?.value || 'mouzy@mouzyerp.com';
+      user = { 
+        id: '00000000-0000-0000-0000-000000000099', 
+        email: mockEmail,
+        user_metadata: {
+          tenant_id: '00000000-0000-0000-0000-000000000001',
+          branch_id: '00000000-0000-0000-0000-000000000010',
+          app_role: mockRole
+        }
+      };
+    } else {
+      user = null;
+    }
   } else {
     const supabase = createServerClient(
       url!,

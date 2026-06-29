@@ -455,34 +455,40 @@ export class MockSupabaseClient {
   auth = {
     getUser: async () => {
       if (typeof window === 'undefined') return { data: { user: null } };
+      const isLoggedIn = localStorage.getItem('sb-mock-logged-in') === 'true';
+      if (!isLoggedIn) {
+        return { data: { user: null } };
+      }
       const role = localStorage.getItem('sb-mock-role') || 'super_admin';
-      const email = localStorage.getItem('sb-mock-email') || 'manager.402@mouzyerp.com';
+      const email = localStorage.getItem('sb-mock-email') || 'mouzy@mouzyerp.com';
       return { data: { user: { 
         ...MOCK_USER, 
         email, 
         user_metadata: { ...MOCK_USER.user_metadata, app_role: role } 
       } } };
     },
-    signInWithPassword: async ({ email }: any) => {
+    signInWithPassword: async ({ email, password }: any) => {
+      const normalizedEmail = email?.toLowerCase().trim();
+      const isUserMatch = normalizedEmail === 'mouzy' || normalizedEmail === 'mouzy@mouzyerp.com';
+      const isPasswordMatch = password === 'Mouzy@123';
+
+      if (!isUserMatch || !isPasswordMatch) {
+        return { 
+          data: { user: null }, 
+          error: { message: 'Invalid credentials. Please use username "mouzy" and password "Mouzy@123".' } 
+        };
+      }
+
+      const role = 'super_admin';
       if (typeof window !== 'undefined') {
         localStorage.setItem('sb-mock-logged-in', 'true');
-        localStorage.setItem('sb-mock-email', email);
-        let role = 'super_admin';
-        const lowerEmail = email.toLowerCase();
-        if (lowerEmail.includes('cashier')) {
-          role = 'cashier';
-        } else if (lowerEmail.includes('manager')) {
-          role = 'branch_manager';
-        } else if (lowerEmail.includes('finance') || lowerEmail.includes('accountant')) {
-          role = 'finance_head';
-        }
+        localStorage.setItem('sb-mock-email', 'mouzy@mouzyerp.com');
         localStorage.setItem('sb-mock-role', role);
         document.cookie = `sb-mock-session=true; path=/; max-age=36000`;
         document.cookie = `sb-mock-role=${role}; path=/; max-age=36000`;
-        document.cookie = `sb-mock-email=${email}; path=/; max-age=36000`;
+        document.cookie = `sb-mock-email=mouzy@mouzyerp.com; path=/; max-age=36000`;
       }
-      const role = typeof window !== 'undefined' ? (localStorage.getItem('sb-mock-role') || 'super_admin') : 'super_admin';
-      return { data: { user: { ...MOCK_USER, email, user_metadata: { ...MOCK_USER.user_metadata, app_role: role } } }, error: null };
+      return { data: { user: { ...MOCK_USER, email: 'mouzy@mouzyerp.com', user_metadata: { ...MOCK_USER.user_metadata, app_role: role } } }, error: null };
     },
     signOut: async () => {
       if (typeof window !== 'undefined') {

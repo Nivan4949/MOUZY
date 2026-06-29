@@ -12,8 +12,11 @@ class MockServerSupabaseClient {
   }
   auth = {
     getUser: async () => {
+      if (this.cookieVal !== 'true') {
+        return { data: { user: null } };
+      }
       const role = this.roleVal || 'super_admin';
-      const email = this.emailVal || 'manager.402@mouzyerp.com';
+      const email = this.emailVal || 'mouzy@mouzyerp.com';
       return { 
         data: { 
           user: { 
