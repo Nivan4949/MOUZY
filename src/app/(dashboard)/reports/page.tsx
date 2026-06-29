@@ -2,441 +2,432 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { 
   FileSpreadsheet, 
   FileText, 
-  Download, 
+  TrendingUp, 
+  Coins, 
   Clock, 
-  CheckCircle2, 
-  RefreshCw, 
-  AlertTriangle,
-  Search
+  ShoppingBag, 
+  ClipboardList, 
+  Activity, 
+  Table as TableIcon, 
+  FileText as FileTextIcon, 
+  Wallet, 
+  Layers, 
+  Users, 
+  UserCheck, 
+  LayoutGrid,
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 
 interface ReportTemplate {
   id: string;
   name: string;
-  description: string;
-  category: 'operations' | 'finance' | 'audit';
+  categoryGroup: 'main' | 'party' | 'supplier' | 'stock';
+  icon: React.ComponentType<any>;
 }
 
 const availableReports: ReportTemplate[] = [
-  { id: 'daily_sales', name: 'Daily Sales Register', description: 'Reconcile invoice payment channels (Cash, Cards, Swiggy, Zomato).', category: 'operations' },
-  { id: 'purchase_cost', name: 'Purchase Head Cost Report', description: 'Daily and monthly comparisons by GL procurement classification.', category: 'operations' },
-  { id: 'cash_denom', name: 'Cash Denomination History', description: 'Chronological denomination counts and cashier register checks.', category: 'audit' },
-  { id: 'variance_trend', name: 'Variance Trend Logs', description: 'Flag branches showing drawer cash shortage/overage trends.', category: 'audit' },
-  { id: 'petty_cash', name: 'Petty Cash Vouchers Log', description: 'Audited expense voucher payouts grouped by category.', category: 'operations' },
-  { id: 'bank_flow', name: 'Bank Flow Summary', description: 'Summarize deposits, drawer cash pickups and withdrawals.', category: 'finance' },
-  { id: 'period_recon', name: 'Period Closing Reconciliation Sheet', description: 'Audited trial balance sheet and financial closure logs.', category: 'finance' },
-  { id: 'vendor_aging', name: 'Vendor Liability Aging Report', description: 'Accounts payable aging brackets, payments, and FIFO ledgers.', category: 'finance' },
-  { id: 'food_cost_trend', name: 'Food Cost Trend Report', description: 'Compare daily and monthly raw material food cost percentage trends.', category: 'finance' },
-  { id: 'category_procurement', name: 'Category-wise Procurement Analysis', description: 'Aggregated procurement spends grouped by GL item and supplier.', category: 'operations' },
-  { id: 'workflow_logs', name: 'Sequential Approval Activity Logs', description: 'Full workflow history tracking submissions and multi-user locks.', category: 'audit' },
+  // MAIN REPORTS
+  { id: 'daily_sales', name: 'Sale Report', categoryGroup: 'main', icon: TrendingUp },
+  { id: 'outstanding_credits', name: 'Outstanding Credits', categoryGroup: 'main', icon: Coins },
+  { id: 'payment_mode_summary', name: 'Payment Mode Summary', categoryGroup: 'main', icon: Clock },
+  { id: 'purchase_cost', name: 'Purchase Report', categoryGroup: 'main', icon: ShoppingBag },
+  { id: 'day_book', name: 'Day Book', categoryGroup: 'main', icon: ClipboardList },
+  { id: 'profit_loss', name: 'Profit & Loss', categoryGroup: 'main', icon: Activity },
+  { id: 'all_transactions', name: 'All Transactions', categoryGroup: 'main', icon: TableIcon },
+  { id: 'credit_notes', name: 'Credit Note Report', categoryGroup: 'main', icon: FileTextIcon },
+  { id: 'debit_notes', name: 'Debit Note Report', categoryGroup: 'main', icon: FileTextIcon },
+  { id: 'cashflow', name: 'Cashflow', categoryGroup: 'main', icon: Wallet },
+  { id: 'balance_sheet', name: 'Balance Sheet', categoryGroup: 'main', icon: Layers },
+  
+  // PARTY REPORTS
+  { id: 'all_customers', name: 'All Customers', categoryGroup: 'party', icon: Users },
+  { id: 'customer_statement', name: 'Customer Statement', categoryGroup: 'party', icon: UserCheck },
+  
+  // SUPPLIER REPORTS
+  { id: 'all_suppliers', name: 'All Suppliers', categoryGroup: 'supplier', icon: Users },
+  { id: 'supplier_ledger', name: 'Supplier Ledger', categoryGroup: 'supplier', icon: Layers },
+  
+  // STOCK REPORTS
+  { id: 'stock_summary', name: 'Stock Summary', categoryGroup: 'stock', icon: LayoutGrid },
+  { id: 'item_sales_profit', name: 'Item Sales & Profit', categoryGroup: 'stock', icon: TrendingUp },
 ];
 
 export default function ReportsPage() {
   const supabase = createClient();
   const [selectedReportId, setSelectedReportId] = useState<string>('daily_sales');
-  const [branches, setBranches] = useState<any[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reportSearchQuery, setReportSearchQuery] = useState('');
-  const [selectedCategoryTab, setSelectedCategoryTab] = useState<'all' | 'operations' | 'finance' | 'audit'>('all');
+  const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'month'>('today');
+  const [reportData, setReportData] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
-  // Async Jobs
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loadingJobs, setLoadingJobs] = useState(true);
-
-  // Fetch branches and jobs
-  async function fetchBranches() {
-    const { data } = await supabase.from('branches').select('id, name');
-    setBranches(data || []);
-  }
-
-  async function fetchJobs() {
-    try {
-      setLoadingJobs(true);
-      const { data } = await supabase
-        .from('report_jobs')
-        .select('*')
-        .order('created_at', { ascending: false });
-      setJobs(data || []);
-    } catch (err) {
-      console.error('Error fetching report jobs:', err);
-    } finally {
-      setLoadingJobs(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchBranches();
-    fetchJobs();
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'report_jobs' },
-        () => fetchJobs()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
-
-  // Client-side report CSV compilation and async job creation
-  const handleExport = async (format: 'excel' | 'pdf') => {
-    try {
-      setLoadingJobs(true);
-      const reportName = availableReports.find(r => r.id === selectedReportId)?.name || 'Custom Report';
-      
-      // Query records based on selected report parameters
-      let csvContent = "data:text/csv;charset=utf-8,";
-      
-      if (selectedReportId === 'daily_sales') {
-        const { data } = await supabase
-          .from('sales_transactions')
-          .select('*')
-          .gte('transaction_timestamp', startDate)
-          .lte('transaction_timestamp', endDate + 'T23:59:59');
-          
-        csvContent += "Invoice ID,Timestamp,Payment Method,Amount Gross,Amount Net\n";
-        data?.forEach((row: any) => {
-          csvContent += `"${row.invoice_number}","${row.transaction_timestamp}","${row.payment_method}",${row.amount_gross},${row.amount_net}\n`;
-        });
-      } else if (selectedReportId === 'purchase_cost') {
-        const { data } = await supabase
-          .from('purchases')
-          .select('*')
-          .gte('invoice_date', startDate)
-          .lte('invoice_date', endDate);
-          
-        csvContent += "Invoice ID,Date,Payment Mode,Amount\n";
-        data?.forEach((row: any) => {
-          csvContent += `"${row.invoice_number}","${row.invoice_date}","${row.payment_mode}",${row.amount}\n`;
-        });
-      } else if (selectedReportId === 'cash_denom') {
-        const { data } = await supabase
-          .from('daybooks')
-          .select('*')
-          .gte('business_date', startDate)
-          .lte('business_date', endDate);
-          
-        csvContent += "Date,Physical Cash,Expected Cash,500s,200s,100s,50s,20s,10s,5s,2s,1s,Coins\n";
-        data?.forEach((row: any) => {
-          csvContent += `"${row.business_date}",${row.physical_cash},${row.expected_cash},${row.denom_500},${row.denom_200},${row.denom_100},${row.denom_50},${row.denom_20},${row.denom_10},${row.denom_5},${row.denom_2},${row.denom_1},${row.denom_coins}\n`;
-        });
-      } else if (selectedReportId === 'variance_trend') {
-        const { data } = await supabase
-          .from('daybooks')
-          .select('*')
-          .gte('business_date', startDate)
-          .lte('business_date', endDate);
-          
-        csvContent += "Date,Expected Cash,Physical Cash,Variance,Justification\n";
-        data?.forEach((row: any) => {
-          const variance = Number(row.physical_cash) - Number(row.expected_cash);
-          csvContent += `"${row.business_date}",${row.expected_cash},${row.physical_cash},${variance},"${row.variance_justification || ''}"\n`;
-        });
-      } else if (selectedReportId === 'petty_cash') {
-        const { data } = await supabase
-          .from('expenses')
-          .select('*')
-          .gte('created_at', startDate)
-          .lte('created_at', endDate + 'T23:59:59');
-          
-        csvContent += "Expense ID,Created At,Description,Amount,Payment Mode,Approved\n";
-        data?.forEach((row: any) => {
-          csvContent += `"${row.id}","${row.created_at}","${row.description}",${row.amount},"${row.payment_mode}",${row.is_approved}\n`;
-        });
-      } else {
-        csvContent += "Report Name,Start Date,End Date,Scope Branch\n";
-        csvContent += `"${reportName}","${startDate}","${endDate}","${selectedBranchId}"\n`;
-      }
-      
-      // Trigger download
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `${selectedReportId}_export_${startDate}_to_${endDate}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Create a background job audit record marked completed
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: tenant } = await supabase.from('tenants').select('id').limit(1).single();
-
-      if (user && tenant) {
-        await supabase
-          .from('report_jobs')
-          .insert({
-            tenant_id: tenant.id,
-            user_id: user.id,
-            report_type: selectedReportId,
-            parameters: {
-              branch_id: selectedBranchId,
-              start_date: startDate,
-              end_date: endDate,
-              export_format: format,
-              report_name: reportName,
-            },
-            status: 'completed',
-            download_url: '#',
-          });
-        fetchJobs();
-      }
-    } catch (err: any) {
-      alert(err.message || 'Error compiling export files');
-    } finally {
-      setLoadingJobs(false);
-    }
+  // Helper: Format Rupee
+  const formatRupee = (value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2
+    }).format(value);
   };
 
-  const selectedReport = availableReports.find(r => r.id === selectedReportId);
-
-  // Real-time filtering and searching of reports
-  const filteredReports = availableReports.filter(report => {
-    const matchesCategory = selectedCategoryTab === 'all' || report.category === selectedCategoryTab;
-    const matchesSearch = report.name.toLowerCase().includes(reportSearchQuery.toLowerCase()) ||
-                          report.description.toLowerCase().includes(reportSearchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const getCategoryBadge = (category: 'operations' | 'finance' | 'audit') => {
-    switch (category) {
-      case 'operations':
-        return <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 text-[9px] font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Ops 🛒</span>;
-      case 'finance':
-        return <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/20 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Fin 🏦</span>;
-      case 'audit':
-        return <span className="inline-flex items-center rounded-md bg-purple-50 dark:bg-purple-950/20 px-2 py-0.5 text-[9px] font-extrabold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Audit 🛡️</span>;
+  // Compute dates boundaries
+  const getDateRange = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    if (dateFilter === 'today') {
+      return { start: todayStr, end: todayStr };
     }
+    if (dateFilter === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      return { start: yesterdayStr, end: yesterdayStr };
+    }
+    if (dateFilter === 'week') {
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
+      const lastWeekStr = lastWeek.toISOString().split('T')[0];
+      return { start: lastWeekStr, end: todayStr };
+    }
+    if (dateFilter === 'month') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+      return { start: startOfMonthStr, end: todayStr };
+    }
+    return { start: todayStr, end: todayStr };
+  };
+
+  // Load database tables based on selected report and date picker
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoadingData(true);
+        const { start, end } = getDateRange();
+        
+        if (selectedReportId === 'daily_sales') {
+          const { data } = await supabase
+            .from('sales_transactions')
+            .select('*')
+            .gte('transaction_timestamp', start)
+            .lte('transaction_timestamp', end + 'T23:59:59')
+            .order('transaction_timestamp', { ascending: false });
+          setReportData(data || []);
+        } else if (selectedReportId === 'purchase_cost') {
+          const { data } = await supabase
+            .from('purchases')
+            .select('*')
+            .gte('invoice_date', start)
+            .lte('invoice_date', end)
+            .order('invoice_date', { ascending: false });
+          setReportData(data || []);
+        } else if (selectedReportId === 'day_book') {
+          const { data } = await supabase
+            .from('daybooks')
+            .select('*')
+            .gte('business_date', start)
+            .lte('business_date', end)
+            .order('business_date', { ascending: false });
+          setReportData(data || []);
+        } else {
+          setReportData([]);
+        }
+      } catch (err) {
+        console.error('Error loading report data:', err);
+      } finally {
+        setLoadingData(false);
+      }
+    }
+    loadData();
+  }, [selectedReportId, dateFilter]);
+
+  // Compute metrics for the cards
+  const getReportSummary = () => {
+    if (selectedReportId === 'daily_sales') {
+      const totalSales = reportData.reduce((acc, row) => acc + Number(row.amount_net), 0);
+      const billCount = reportData.length;
+      const totalTax = totalSales * 0.05; // 5% GST
+      return { card1: formatRupee(totalSales), card2: billCount, card3: formatRupee(totalTax) };
+    }
+    if (selectedReportId === 'purchase_cost') {
+      const totalPurchases = reportData.reduce((acc, row) => acc + Number(row.amount), 0);
+      const purchaseCount = reportData.length;
+      const creditOutstanding = reportData.filter(r => r.payment_status === 'unpaid').reduce((acc, row) => acc + Number(row.amount), 0);
+      return { card1: formatRupee(totalPurchases), card2: purchaseCount, card3: formatRupee(creditOutstanding) };
+    }
+    if (selectedReportId === 'day_book') {
+      const expectedCash = reportData.reduce((acc, row) => acc + Number(row.expected_cash), 0);
+      const physicalCash = reportData.reduce((acc, row) => acc + Number(row.physical_cash), 0);
+      const variance = physicalCash - expectedCash;
+      return { card1: formatRupee(expectedCash), card2: reportData.length, card3: formatRupee(variance) };
+    }
+    return { card1: '₹0.00', card2: 0, card3: '₹0.00' };
+  };
+
+  const getCardTitles = () => {
+    if (selectedReportId === 'purchase_cost') {
+      return { card1: 'TOTAL PURCHASES', card2: 'PURCHASE COUNT', card3: 'CREDIT OUTSTANDING' };
+    }
+    if (selectedReportId === 'day_book') {
+      return { card1: 'EXPECTED CASH', card2: 'SHIFT COUNT', card3: 'TOTAL VARIANCE' };
+    }
+    return { card1: 'TOTAL SALES', card2: 'BILL COUNT', card3: 'TOTAL TAX' };
+  };
+
+  const handleExport = (format: 'csv' | 'pdf') => {
+    if (reportData.length === 0) {
+      alert('No data records available to export.');
+      return;
+    }
+    let csvContent = "data:text/csv;charset=utf-8,";
+    if (selectedReportId === 'daily_sales') {
+      csvContent += "Invoice ID,Timestamp,Payment Method,Amount Gross,Amount Net\n";
+      reportData.forEach((row: any) => {
+        csvContent += `"${row.invoice_number}","${row.transaction_timestamp}","${row.payment_method}",${row.amount_gross},${row.amount_net}\n`;
+      });
+    } else if (selectedReportId === 'purchase_cost') {
+      csvContent += "Invoice ID,Date,Payment Mode,Amount\n";
+      reportData.forEach((row: any) => {
+        csvContent += `"${row.invoice_number}","${row.invoice_date}","${row.payment_mode}",${row.amount}\n`;
+      });
+    }
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${selectedReportId}_export_${dateFilter}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const activeReport = availableReports.find(r => r.id === selectedReportId);
+  const summaryMetrics = getReportSummary();
+  const cardTitles = getCardTitles();
+
+  const getGroupedMenu = (group: 'main' | 'party' | 'supplier' | 'stock') => {
+    return availableReports
+      .filter(r => r.categoryGroup === group)
+      .map(report => {
+        const Icon = report.icon;
+        const isSelected = selectedReportId === report.id;
+        return (
+          <button
+            key={report.id}
+            onClick={() => setSelectedReportId(report.id)}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-extrabold rounded-lg transition-all text-left uppercase tracking-wider ${
+              isSelected 
+                ? 'bg-[#7cb342] text-white shadow-sm' 
+                : 'text-slate-650 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-350 dark:hover:bg-slate-900'
+            }`}
+          >
+            <Icon size={14} className={isSelected ? 'text-white' : 'text-slate-500'} />
+            {report.name}
+          </button>
+        );
+      });
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Reporting Center
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Generate financial summaries, export spreadsheets, and monitor active data requests.
-        </p>
-      </div>
+    <div className="flex flex-col lg:flex-row gap-6 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm font-sans select-none overflow-hidden h-[82vh]">
+      
+      {/* Left sub-column - categorized Reports menu */}
+      <aside className="w-full lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-850 pr-0 lg:pr-4 flex flex-col overflow-y-auto shrink-0 select-none custom-scrollbar">
+        <h2 className="text-lg font-black tracking-tight text-slate-850 dark:text-white uppercase mb-4 pl-2">
+          Reports
+        </h2>
+        
+        <div className="space-y-4 pb-6">
+          {/* Main Reports */}
+          <div className="space-y-1">
+            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-1.5">
+              Main Reports
+            </h3>
+            {getGroupedMenu('main')}
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Side: Report Selectors & Parameters */}
-        <div className="space-y-6">
-          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-            <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-900">
-              <CardTitle className="text-sm font-semibold uppercase text-slate-500 tracking-wider">Report Registry</CardTitle>
-              <div className="relative mt-3">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  type="text"
-                  placeholder="Search report name..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary outline-none"
-                  value={reportSearchQuery}
-                  onChange={(e) => setReportSearchQuery(e.target.value)}
-                />
-              </div>
+          {/* Party Reports */}
+          <div className="space-y-1">
+            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-1.5">
+              Party Reports (Customer)
+            </h3>
+            {getGroupedMenu('party')}
+          </div>
 
-              {/* Category Tab Selector */}
-              <div className="flex gap-1 mt-3 bg-slate-50 dark:bg-slate-900 p-1 rounded-lg border border-slate-150 dark:border-slate-850 overflow-x-auto scrollbar-none">
-                {[
-                  { id: 'all', label: 'All' },
-                  { id: 'operations', label: 'Ops' },
-                  { id: 'finance', label: 'Fin' },
-                  { id: 'audit', label: 'Audit' }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setSelectedCategoryTab(tab.id as any)}
-                    className={`flex-1 text-center py-1 text-[9px] font-black uppercase tracking-wider rounded transition-all cursor-pointer ${
-                      selectedCategoryTab === tab.id
-                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-650'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1.5 pt-4 max-h-[480px] overflow-y-auto custom-scrollbar">
-              {filteredReports.length > 0 ? (
-                filteredReports.map((report) => (
-                  <button
-                    key={report.id}
-                    onClick={() => setSelectedReportId(report.id)}
-                    className={`w-full text-left p-3.5 rounded-xl transition-all border duration-200 ${
-                      selectedReportId === report.id
-                        ? 'bg-emerald-50/30 border-emerald-500/25 dark:bg-emerald-950/10 dark:border-emerald-550/20 shadow-sm'
-                        : 'hover:bg-slate-50/60 dark:hover:bg-slate-900/40 border-transparent'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <p className={`font-semibold text-xs ${selectedReportId === report.id ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-850 dark:text-slate-205'}`}>
-                        {report.name}
-                      </p>
-                      <div className="shrink-0">{getCategoryBadge(report.category)}</div>
-                    </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-450 font-normal mt-1 leading-snug">
-                      {report.description}
-                    </p>
-                  </button>
-                ))
-              ) : (
-                <div className="text-center py-8 text-xs text-slate-400">No reports match your filters.</div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Supplier Reports */}
+          <div className="space-y-1">
+            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-1.5">
+              Supplier Reports (Parties)
+            </h3>
+            {getGroupedMenu('supplier')}
+          </div>
+
+          {/* Item/Stock Reports */}
+          <div className="space-y-1">
+            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2 mb-1.5">
+              Item / Stock Reports
+            </h3>
+            {getGroupedMenu('stock')}
+          </div>
         </div>
+      </aside>
 
-        {/* Right Side: Filters, Actions & Active Jobs */}
-        <div className="lg:col-span-2 space-y-8">
-          {selectedReport && (
-            <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 p-6">
-              <CardHeader className="px-0 pt-0 pb-6 border-b border-slate-100 dark:border-slate-900">
-                <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.name}</CardTitle>
-                <CardDescription>{selectedReport.description}</CardDescription>
-              </CardHeader>
-              
-              <CardContent className="px-0 py-6 space-y-6">
-                {/* Filters Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="branch_select">Scope Branch</Label>
-                    <Select onValueChange={(v) => setSelectedBranchId(v as string)} defaultValue={selectedBranchId}>
-                      <SelectTrigger id="branch_select">
-                        <SelectValue placeholder="All Branches" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-slate-950 border dark:border-slate-800">
-                        <SelectItem value="all">All Outlets</SelectItem>
-                        {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="start_date">Start Date</Label>
-                    <Input 
-                      id="start_date" 
-                      type="date" 
-                      value={startDate} 
-                      onChange={(e) => setStartDate(e.target.value)} 
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="end_date">End Date</Label>
-                    <Input 
-                      id="end_date" 
-                      type="date" 
-                      value={endDate} 
-                      onChange={(e) => setEndDate(e.target.value)} 
-                    />
-                  </div>
-                </div>
-              </CardContent>
-
-              <CardFooter className="px-0 pb-0 border-t border-slate-100 dark:border-slate-900 pt-6 flex justify-end gap-4">
-                <Button 
-                  onClick={() => handleExport('excel')}
-                  variant="outline" 
-                  className="gap-2 border-slate-200 dark:border-slate-800"
-                >
-                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                  <span>Export Excel</span>
-                </Button>
-                <Button 
-                  onClick={() => handleExport('pdf')}
-                  variant="outline" 
-                  className="gap-2 border-slate-200 dark:border-slate-800"
-                >
-                  <FileText className="h-4 w-4 text-rose-600" />
-                  <span>Export PDF</span>
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
-
-          {/* Active / Historical Job Queue */}
-          <Card className="border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 p-6">
-            <CardHeader className="px-0 pt-0 pb-6 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white">Active Export Requests</CardTitle>
-                <CardDescription>Consolidated multi-branch tasks running asynchronously.</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={fetchJobs} className="h-8 border-slate-200">
-                <RefreshCw className="h-3.5 w-3.5" />
+      {/* Right sub-column - main details pane */}
+      <section className="flex-1 flex flex-col overflow-hidden min-w-0">
+        
+        {/* Header toolbar */}
+        {activeReport && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4 gap-4 shrink-0">
+            <div>
+              <h1 className="text-xl font-black text-slate-850 dark:text-white uppercase tracking-tight">
+                {activeReport.name}
+              </h1>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                Data Analysis & Archival
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              <Button 
+                onClick={() => handleExport('csv')}
+                variant="outline" 
+                size="sm"
+                className="gap-1.5 border-emerald-600/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-[10px] font-black uppercase tracking-wider"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>Export CSV</span>
               </Button>
-            </CardHeader>
-            <CardContent className="px-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-200 dark:border-slate-800">
-                    <TableHead>Requested Report</TableHead>
-                    <TableHead>Format</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jobs.length > 0 ? (
-                    jobs.map((job) => (
-                      <TableRow key={job.id} className="border-slate-100 dark:border-slate-900">
-                        <TableCell className="font-semibold text-slate-700 dark:text-slate-300 py-3.5">
-                          {job.parameters?.report_name || job.report_type}
-                        </TableCell>
-                        <TableCell className="text-slate-500 uppercase font-medium py-3.5">
-                          {job.parameters?.export_format || 'Excel'}
-                        </TableCell>
-                        <TableCell className="py-3.5">
-                          <span className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2 py-0.5 border ${
-                            job.status === 'completed' 
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20' 
-                              : job.status === 'processing' 
-                              ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/20' 
-                              : 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/20'
-                          }`}>
-                            {job.status === 'completed' ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                            <span>{job.status.toUpperCase()}</span>
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right py-3.5">
-                          {job.status === 'completed' && job.download_url ? (
-                            <Button render={<a href={job.download_url} download />} size="sm" variant="ghost" className="h-8 gap-1.5 text-emerald-600 hover:text-emerald-500">
-                              <span className="flex items-center gap-1.5">
-                                <Download className="h-3.5 w-3.5" /> Download
-                              </span>
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-slate-400 font-medium">Pending Processing</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-xs text-slate-400">No export jobs requested yet.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <Button 
+                onClick={() => handleExport('csv')} // CSV fallback download
+                variant="outline" 
+                size="sm"
+                className="gap-1.5 border-rose-600/40 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-[10px] font-black uppercase tracking-wider"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span>Export PDF</span>
+              </Button>
+              
+              <select
+                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-350 p-2 rounded-lg text-xs font-semibold focus:ring-1 focus:ring-primary outline-none"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as any)}
+              >
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="week">Last 7 Days</option>
+                <option value="month">This Month</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Summary metrics cards (3 cards) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 shrink-0">
+          <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm rounded-xl">
+            <CardContent className="p-4">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                {cardTitles.card1}
+              </span>
+              <p className="text-xl font-extrabold text-slate-800 dark:text-slate-105 font-mono mt-1">
+                {summaryMetrics.card1}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm rounded-xl">
+            <CardContent className="p-4">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                {cardTitles.card2}
+              </span>
+              <p className="text-xl font-extrabold text-slate-800 dark:text-slate-105 font-mono mt-1">
+                {summaryMetrics.card2}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-955 shadow-sm rounded-xl">
+            <CardContent className="p-4">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                {cardTitles.card3}
+              </span>
+              <p className="text-xl font-extrabold text-slate-800 dark:text-slate-105 font-mono mt-1">
+                {summaryMetrics.card3}
+              </p>
             </CardContent>
           </Card>
         </div>
-      </div>
+
+        {/* Main records data table */}
+        <div className="flex-1 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-955 overflow-y-auto custom-scrollbar shadow-sm">
+          {loadingData ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 py-20 text-slate-400">
+              <RefreshCw className="h-6 w-6 animate-spin text-[#0b522c]" />
+              <p className="text-xs font-semibold">Querying database records...</p>
+            </div>
+          ) : reportData.length > 0 ? (
+            <Table>
+              <TableHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+                <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-800">
+                  <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Date</TableHead>
+                  <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Time</TableHead>
+                  <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Invoice</TableHead>
+                  <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Customer / Details</TableHead>
+                  <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-right">Amount</TableHead>
+                  <TableHead className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reportData.map((row: any, idx: number) => {
+                  const timestamp = row.transaction_timestamp || row.created_at || row.invoice_date;
+                  const dateObj = timestamp ? new Date(timestamp) : null;
+                  const dateDisplay = dateObj ? dateObj.toLocaleDateString() : (row.business_date || '-');
+                  const timeDisplay = dateObj ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-';
+                  
+                  return (
+                    <TableRow key={row.id || idx} className="border-slate-100 dark:border-slate-900">
+                      <TableCell className="text-xs text-slate-700 dark:text-slate-300 font-mono py-3">
+                        {dateDisplay}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-700 dark:text-slate-300 font-mono py-3">
+                        {timeDisplay}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-700 dark:text-slate-300 font-mono py-3">
+                        {row.invoice_number || row.id?.slice(0,8) || '-'}
+                      </TableCell>
+                      <TableCell className="text-xs font-semibold text-slate-800 dark:text-slate-200 py-3">
+                        {row.payment_method || row.payment_mode || row.variance_justification?.slice(0, 30) || 'General Posting'}
+                      </TableCell>
+                      <TableCell className="text-xs font-bold font-mono text-slate-900 dark:text-white text-right py-3">
+                        {formatRupee(Number(row.amount_net || row.amount || row.physical_cash || 0))}
+                      </TableCell>
+                      <TableCell className="text-center py-3">
+                        <Button 
+                          onClick={() => alert(`Review record details:\nRef: ${row.invoice_number || row.id}`)}
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 text-[10px] font-black uppercase text-emerald-600 hover:text-emerald-500"
+                        >
+                          <Printer size={12} className="mr-1" /> Print
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="flex h-full items-center justify-center py-20 text-slate-400 dark:text-slate-650">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                No records found.
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
     </div>
   );
 }

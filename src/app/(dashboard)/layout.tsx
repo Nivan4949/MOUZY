@@ -59,8 +59,8 @@ function NavigationList({ pathname, onClick }: { pathname: string; onClick: () =
             href={item.href}
             className={`flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 border-l-4 ${
               isActive 
-                ? 'bg-[#0b522c] text-white shadow-sm border-[#ffd600]' 
-                : 'text-slate-400 border-transparent hover:bg-slate-800/60 hover:text-white'
+                ? 'bg-white/15 text-white shadow-sm border-[#ffd600]' 
+                : 'text-emerald-100 border-transparent hover:bg-white/5 hover:text-white'
             }`}
             onClick={onClick}
           >
@@ -107,34 +107,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Sidebar Navigation */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-800 bg-[#0f172a] transition-transform duration-300 lg:static lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-850 bg-[#0b522c] transition-transform duration-300 lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800 bg-slate-950/25">
+        <div className="flex h-16 items-center justify-between px-6 border-b border-[#073d20] bg-slate-950/15">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#ffd600] text-[#0b522c] shadow-md border border-[#ffd600]/10">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#ffd600] text-[#0b522c] shadow-md border border-[#ffd600]/10 shrink-0">
               <svg className="h-6 w-6" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Banana Smile Curve */}
-                <path d="M15,40 Q50,85 85,40 Q50,65 15,40 Z" fill="currentColor" />
-                {/* Spoon Handle */}
-                <path d="M48,15 L52,15 L52,50 L48,50 Z" fill="currentColor" stroke="currentColor" strokeWidth="1" />
-                {/* Spoon Top */}
-                <ellipse cx="50" cy="15" rx="5" ry="3" fill="currentColor" />
+                {/* Spoon Handle extending up */}
+                <path d="M 48 12 L 52 12 L 52 45 L 48 45 Z" fill="currentColor" />
+                {/* Spoon Bowl in the middle */}
+                <ellipse cx="50" cy="42" rx="3.5" ry="6" fill="currentColor" />
+                {/* Thick Banana crescent body with stems */}
+                <path d="M 22,38 C 22,38 15,42 17,48 C 21,60 32,73 50,73 C 68,73 79,60 83,48 C 85,42 78,38 78,38 C 78,38 74,51 68,57 C 60,63 55,65 50,65 C 45,65 40,63 32,57 C 26,51 22,38 22,38 Z" fill="currentColor" />
+                {/* Small stem details on banana ends */}
+                <path d="M 22,38 C 22,38 23,35 20,36 C 17,37 17,45 17,45 Z" fill="currentColor" />
+                <path d="M 78,38 C 78,38 77,35 80,36 C 83,37 83,45 83,45 Z" fill="currentColor" />
+                {/* Floating Fruits (Circles representing fruits) */}
+                <circle cx="35" cy="45" r="2.5" fill="currentColor" />
+                <circle cx="42" cy="51" r="2" fill="currentColor" />
+                <circle cx="38" cy="55" r="2" fill="currentColor" />
+                <circle cx="65" cy="45" r="2.5" fill="currentColor" />
+                <circle cx="58" cy="51" r="2" fill="currentColor" />
+                <circle cx="62" cy="55" r="2" fill="currentColor" />
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-black tracking-tight text-[#ffd600] uppercase leading-none">
+              <span className="text-base font-black tracking-tight text-[#ffd600] uppercase leading-none drop-shadow-[0_1.5px_1px_rgba(7,61,32,0.8)]">
                 MOUZY
               </span>
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider leading-none mt-1">
-                Banana Avil Milk
+              <span className="text-[8px] font-black text-emerald-100 uppercase tracking-wider leading-none mt-1.5">
+                BANANA AVIL MILK
+              </span>
+              <span className="text-[6px] font-extrabold text-[#ffd600]/80 uppercase tracking-widest leading-none mt-1">
+                EST. 1985
               </span>
             </div>
           </Link>
           <button 
             onClick={() => setSidebarOpen(false)}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 lg:hidden"
+            className="rounded-md p-1.5 text-emerald-100 hover:bg-[#073d20] lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
@@ -146,23 +159,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Suspense>
 
         {/* User Footer Profile */}
-        <div className="border-t border-slate-800 p-4 bg-slate-950/20">
+        <div className="border-t border-[#073d20] p-4 bg-slate-950/15">
           <div className="flex items-center gap-3 mb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-slate-300">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#073d20] text-slate-300">
               <User className="h-4 w-4" />
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-slate-200 truncate">
+              <p className="text-xs font-semibold text-white truncate">
                 Branch Manager
               </p>
-              <p className="text-[10px] text-slate-500 truncate">
+              <p className="text-[10px] text-emerald-200 truncate">
                 {userEmail}
               </p>
             </div>
           </div>
           <button
             onClick={handleSignOut}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-950/20 transition-colors"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-rose-350 hover:bg-rose-950/30 transition-colors"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
