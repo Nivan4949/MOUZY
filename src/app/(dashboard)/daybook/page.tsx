@@ -379,7 +379,7 @@ function DaybookContent() {
     }, 1500);
 
     return () => clearTimeout(saveTimer);
-  }, [salesSplits, denomCounts, bankDeposits, bankWithdrawals, justification, daybook?.opening_cash, daybook?.physical_cash]);
+  }, [salesSplits, denomCounts, bankDeposits, bankWithdrawals, justification, daybook?.opening_cash, daybook?.physical_cash, bankOpening]);
 
   const handleOpenDaybook = async (values: OpenDaybookForm) => {
     try {
@@ -476,6 +476,7 @@ function DaybookContent() {
         .from('daybooks')
         .update({
           opening_cash: daybook.opening_cash,
+          bank_opening_balance: bankOpening,
           physical_cash: actualCash,
           bank_deposits: bankDeposits,
           bank_withdrawals: bankWithdrawals,
@@ -1059,116 +1060,231 @@ function DaybookContent() {
                 </CardContent>
               </Card>
 
-              {/* Card 3: Closing Drawer Summary (Excel-style) */}
+              {/* Cash & Bank Excel Summaries */}
               {userRole === 'outlet_manager' && (
-                <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50 duration-200">
-                  <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
-                    <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Closing Drawer Summary (Excel)</CardTitle>
-                    <CardDescription className="text-xs">Input opening and physical cash to auto-calculate drawer excess/shortage balance.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pt-6">
-                    
-                    {/* Opening Cash Input */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="mgr-opening-cash" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                        Opening Cash (₹)
-                      </Label>
-                      <Input
-                        id="mgr-opening-cash"
-                        type="number"
-                        step="0.01"
-                        disabled={!isEditable}
-                        value={daybook.opening_cash || ''}
-                        onChange={(e) => {
-                          const val = Number(e.target.value) || 0;
-                          setDaybook({ ...daybook, opening_cash: val });
-                        }}
-                        className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100 focus:ring-primary"
-                        placeholder="₹0.00"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in-50 duration-200">
+                  
+                  {/* Card 3: Closing Drawer Summary (Cash) */}
+                  <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
+                      <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Closing Drawer Summary (Cash)</CardTitle>
+                      <CardDescription className="text-xs">Verify cash drawer closing balance and calculate excess or short cash.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-6">
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Opening Cash Input */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="mgr-opening-cash" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                            Opening Cash (₹)
+                          </Label>
+                          <Input
+                            id="mgr-opening-cash"
+                            type="number"
+                            step="0.01"
+                            disabled={!isEditable}
+                            value={daybook.opening_cash || ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              setDaybook({ ...daybook, opening_cash: val });
+                            }}
+                            className="font-bold font-mono text-base h-11 text-slate-800 dark:text-slate-100 focus:ring-primary"
+                            placeholder="₹0.00"
+                          />
+                        </div>
 
-                    {/* Calculated Cash Sales */}
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                        Calculated Cash Sales (₹)
-                      </span>
-                      <div className="font-bold font-mono text-lg h-12 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                        {formatRupee(totalCashSales)}
+                        {/* Calculated Cash Sales */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Calculated Cash Sales
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(totalCashSales)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Total Purchases */}
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                        Total Purchases (₹)
-                      </span>
-                      <div className="font-bold font-mono text-lg h-12 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                        {formatRupee(totalPurchasesValue)}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Total Purchases */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Total Purchases (Cash)
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(totalCashPurchases)}
+                          </div>
+                        </div>
+
+                        {/* Total Expenses */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Total Expenses (Cash)
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(totalCashExpenses)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Total Expenses */}
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                        Total Expenses (₹)
-                      </span>
-                      <div className="font-bold font-mono text-lg h-12 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                        {formatRupee(totalCashExpenses)}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Expected Closing Cash */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Expected Cash
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(expectedCash)}
+                          </div>
+                        </div>
+
+                        {/* Cash in Hand Input */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="mgr-physical-cash" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                            Cash in Hand
+                          </Label>
+                          <Input
+                            id="mgr-physical-cash"
+                            type="number"
+                            step="0.01"
+                            disabled={!isEditable}
+                            value={daybook.physical_cash || ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              setDaybook({ ...daybook, physical_cash: val });
+                            }}
+                            className="font-bold font-mono text-base h-11 text-slate-800 dark:text-slate-100 focus:ring-primary"
+                            placeholder="₹0.00"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Expected Closing Cash */}
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                        Expected Closing Cash (₹)
-                      </span>
-                      <div className="font-bold font-mono text-lg h-12 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                        {formatRupee(expectedCash)}
+                      {/* Excess / Short */}
+                      <div className="space-y-1.5 pt-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                          Excess / Short (₹)
+                        </span>
+                        <div className={`font-bold font-mono text-lg h-11 flex items-center px-3 rounded-lg border ${
+                          cashDifference === 0 
+                            ? 'border-emerald-200 bg-emerald-50/20 text-emerald-700' 
+                            : cashDifference < 0 
+                              ? 'border-rose-200 bg-rose-50/20 text-rose-600' 
+                              : 'border-amber-200 bg-amber-50/20 text-amber-700'
+                        }`}>
+                          {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
+                          {cashDifference === 0 && ' (Perfect Balance)'}
+                          {cashDifference < 0 && ' (Short)'}
+                          {cashDifference > 0 && ' (Excess)'}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Cash in Hand Input */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="mgr-physical-cash" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                        Cash in Hand (Closing Cash) (₹)
-                      </Label>
-                      <Input
-                        id="mgr-physical-cash"
-                        type="number"
-                        step="0.01"
-                        disabled={!isEditable}
-                        value={daybook.physical_cash || ''}
-                        onChange={(e) => {
-                          const val = Number(e.target.value) || 0;
-                          setDaybook({ ...daybook, physical_cash: val });
-                        }}
-                        className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100 focus:ring-primary"
-                        placeholder="₹0.00"
-                      />
-                    </div>
+                    </CardContent>
+                  </Card>
 
-                    {/* Excess / Short */}
-                    <div className="space-y-1.5 col-span-1 sm:col-span-2 md:col-span-3">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                        Excess / Short (₹)
-                      </span>
-                      <div className={`font-bold font-mono text-xl h-12 flex items-center px-3 rounded-lg border ${
-                        cashDifference === 0 
-                          ? 'border-emerald-200 bg-emerald-50/20 text-emerald-700' 
-                          : cashDifference < 0 
-                            ? 'border-rose-200 bg-rose-50/20 text-rose-600' 
-                            : 'border-amber-200 bg-amber-50/20 text-amber-700'
-                      }`}>
-                        {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
-                        {cashDifference === 0 && ' (Perfect Balance)'}
-                        {cashDifference < 0 && ' (Short)'}
-                        {cashDifference > 0 && ' (Excess)'}
+                  {/* Card 4: Closing Bank Summary (Bank) */}
+                  <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50 duration-200">
+                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-955/20 py-4">
+                      <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Closing Bank Summary (Excel)</CardTitle>
+                      <CardDescription className="text-xs">Verify bank opening balance, UPI / digital settlements, and closing balance.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-6">
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Opening Bank Input */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="mgr-bank-opening" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                            Opening Bank (₹)
+                          </Label>
+                          <Input
+                            id="mgr-bank-opening"
+                            type="number"
+                            step="0.01"
+                            disabled={!isEditable}
+                            value={bankOpening || ''}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              setBankOpening(val);
+                            }}
+                            className="font-bold font-mono text-base h-11 text-slate-800 dark:text-slate-100 focus:ring-primary"
+                            placeholder="₹0.00"
+                          />
+                        </div>
+
+                        {/* Calculated Bank Sales */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Bank Sales (Settled)
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(Number(salesSplits.gpay) + Number(salesSplits.card) + Number(salesSplits.swiggy) + Number(salesSplits.zomato))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                  </CardContent>
-                </Card>
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Total Purchases (Bank) */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Total Purchases (Bank)
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(purchases.filter((p: any) => p.payment_mode === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0))}
+                          </div>
+                        </div>
+
+                        {/* Total Expenses (Bank) */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Total Expenses (Bank)
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(expenses.filter((e: any) => e.payment_mode === 'bank' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Bank Income / Receipts */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Bank Income / Receipts
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(incomeList.filter((i: any) => i.payment_method === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0))}
+                          </div>
+                        </div>
+
+                        {/* Safe Box Deposits */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                            Safe Box Deposits
+                          </span>
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                            {formatRupee(bankDeposits)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expected Closing Bank Balance */}
+                      <div className="space-y-1.5 pt-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
+                          Closing Balance (Calculated) (₹)
+                        </span>
+                        <div className="font-bold font-mono text-lg h-11 flex items-center px-3 rounded-lg border border-emerald-200 bg-emerald-50/20 text-emerald-800">
+                          {formatRupee(
+                            bankOpening + 
+                            (Number(salesSplits.gpay) + Number(salesSplits.card) + Number(salesSplits.swiggy) + Number(salesSplits.zomato)) +
+                            incomeList.filter((i: any) => i.payment_method === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0) +
+                            bankDeposits -
+                            purchases.filter((p: any) => p.payment_mode === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0) -
+                            expenses.filter((e: any) => e.payment_mode === 'bank' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0)
+                          )}
+                        </div>
+                      </div>
+
+                    </CardContent>
+                  </Card>
+
+                </div>
               )}
               {userRole === 'outlet_manager' && renderWorkflowFooter()}
             </div>
