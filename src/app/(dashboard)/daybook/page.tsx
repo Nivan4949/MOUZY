@@ -141,6 +141,9 @@ function DaybookContent() {
   const [monthlyPurchases, setMonthlyPurchases] = useState<any[]>([]);
   const [monthlySalesTotal, setMonthlySalesTotal] = useState<number>(0);
   const [userRole, setUserRole] = useState<string>('cashier');
+  const currentTab = userRole === 'outlet_manager'
+    ? (activeTab === 'bank' ? 'bank' : 'cash')
+    : activeTab;
   
   // Rejection reason popups
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -799,22 +802,33 @@ function DaybookContent() {
   }
 
   // List of active tabs
-  const tabs = [
-    { id: 'sales', label: 'Daily Sales 📈', icon: ClipboardList },
-    { id: 'purchases', label: 'Items Bought 🛒', icon: ShoppingBag },
-    { id: 'expenses', label: 'Shop Expenses 💸', icon: Receipt },
-    { id: 'bank', label: 'Safe Box & Bank 🏦', icon: Building },
-    { id: 'cashbook', label: 'Cash Counter 🪙', icon: Coins },
-  ].filter(tab => {
-    if (userRole === 'outlet_manager') {
-      return tab.id === 'sales' || tab.id === 'purchases' || tab.id === 'expenses';
-    }
-    return true;
-  });
+  const tabs = userRole === 'outlet_manager'
+    ? [
+        { id: 'cash', label: 'CASH 💵', icon: Wallet },
+        { id: 'bank', label: 'BANK 🏦', icon: Building },
+      ]
+    : [
+        { id: 'sales', label: 'Daily Sales 📈', icon: ClipboardList },
+        { id: 'purchases', label: 'Items Bought 🛒', icon: ShoppingBag },
+        { id: 'expenses', label: 'Shop Expenses 💸', icon: Receipt },
+        { id: 'bank', label: 'Safe Box & Bank 🏦', icon: Building },
+        { id: 'cashbook', label: 'Cash Counter 🪙', icon: Coins },
+      ];
 
   // Tab live progress metrics helpers
   const getTabLiveValue = (id: string) => {
     switch (id) {
+      case 'cash':
+        return formatRupee(totalSalesSplits);
+      case 'bank':
+        return formatRupee(
+          bankOpening + 
+          (Number(salesSplits.gpay) + Number(salesSplits.card) + Number(salesSplits.swiggy) + Number(salesSplits.zomato)) +
+          incomeList.filter((i: any) => i.payment_method === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0) +
+          bankDeposits -
+          purchases.filter((p: any) => p.payment_mode === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0) -
+          expenses.filter((e: any) => e.payment_mode === 'bank' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0)
+        );
       case 'sales':
         return formatRupee(totalSalesSplits);
       case 'purchases':
@@ -834,6 +848,10 @@ function DaybookContent() {
 
   const getTabStatus = (id: string) => {
     switch (id) {
+      case 'cash':
+        return isSalesInvalid ? 'error' : totalSalesSplits > 0 ? 'success' : 'empty';
+      case 'bank':
+        return 'success';
       case 'sales':
         return isSalesInvalid ? 'error' : totalSalesSplits > 0 ? 'success' : 'empty';
       case 'purchases':
@@ -849,10 +867,10 @@ function DaybookContent() {
     }
   };
 
-  const successTabsCount = ['sales', 'purchases', 'expenses', 'bank', 'cashbook']
+  const successTabsCount = (userRole === 'outlet_manager' ? ['cash', 'bank'] : ['sales', 'purchases', 'expenses', 'bank', 'cashbook'])
     .map(getTabStatus)
     .filter(status => status === 'success').length;
-  const progressPercent = (successTabsCount / 5) * 100;
+  const progressPercent = (successTabsCount / (userRole === 'outlet_manager' ? 2 : 5)) * 100;
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto px-4 md:px-6">
@@ -954,7 +972,7 @@ function DaybookContent() {
               <nav className="flex flex-col gap-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
-                  const isSelected = activeTab === tab.id;
+                  const isSelected = currentTab === tab.id;
                   const status = getTabStatus(tab.id);
                   const liveVal = getTabLiveValue(tab.id);
 
@@ -996,7 +1014,7 @@ function DaybookContent() {
 
         {/* PANEL 2: Center Active Worksheet Form (xl:col-span-6 or col-span-12) */}
         <div className={userRole === 'outlet_manager' ? "col-span-12 max-w-4xl mx-auto w-full space-y-6" : "xl:col-span-6 space-y-6"}>
-                  {activeTab === 'sales' && (
+                  {(currentTab === 'cash' || (currentTab === 'sales' && userRole !== 'outlet_manager')) && (
             <div className="space-y-6">
               <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
                 <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
@@ -1060,13 +1078,226 @@ function DaybookContent() {
                 </CardContent>
               </Card>
 
-              {/* Cash & Bank Excel Summaries */}
+              {/* Cash Purchases & Expenses Cards for outlet_manager */}
               {userRole === 'outlet_manager' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in-50 duration-200">
-                  
+                  {/* Purchases Column */}
+                  <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-955/20 py-4 flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Cash Purchases (Items Bought)</CardTitle>
+                        <CardDescription className="text-xs">Log daily raw materials bought (milk, banana, fruits, etc.)</CardDescription>
+                      </div>
+                      {isEditable && (
+                        <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
+                          <DialogTrigger render={
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300"
+                              onClick={() => purForm.setValue('payment_mode', 'cash')}
+                            >
+                              <Plus className="h-4 w-4" /> Add Item
+                            </Button>
+                          } />
+                          <DialogContent className="sm:max-w-md bg-white dark:bg-slate-955 border dark:border-slate-800">
+                            <DialogHeader>
+                              <DialogTitle>Add Cash Purchase Entry</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={purForm.handleSubmit(handleAddPurchase)} className="space-y-4 pt-2">
+                              <div>
+                                <Label htmlFor="vendor_id" className="text-xs font-semibold">Supplier / Vendor</Label>
+                                <Select onValueChange={(v: any) => purForm.setValue('vendor_id', v)}>
+                                  <SelectTrigger className="w-full mt-1.5 h-11">
+                                    <SelectValue placeholder="Select supplier" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-slate-955 border dark:border-slate-800">
+                                    {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="purchase_head_id" className="text-xs font-semibold">Item Category</Label>
+                                <Select onValueChange={(v: any) => purForm.setValue('purchase_head_id', v)}>
+                                  <SelectTrigger className="w-full mt-1.5 h-11">
+                                    <SelectValue placeholder="Select category (Milk, Banana, Sugar, etc.)" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-slate-955 border dark:border-slate-800">
+                                    {heads.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="invoice_number" className="text-xs font-semibold">Bill / Invoice Number</Label>
+                                  <Input id="invoice_number" {...purForm.register('invoice_number')} className="mt-1.5 h-11" />
+                                </div>
+                                <div>
+                                  <Label htmlFor="amount" className="text-xs font-semibold">Bill Value (₹)</Label>
+                                  <Input id="amount" type="number" step="0.01" {...purForm.register('amount')} className="mt-1.5 h-11" />
+                                </div>
+                              </div>
+                              <DialogFooter className="pt-2">
+                                <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
+                                  Save Purchase
+                                </Button>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader className="bg-stone-50/50 dark:bg-slate-955/20">
+                          <TableRow className="border-stone-100 dark:border-slate-900">
+                            <TableHead className="pl-6">Supplier</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            {isEditable && <TableHead className="w-12"></TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {purchases.filter((p: any) => p.payment_mode === 'cash').length > 0 ? (
+                            purchases.filter((p: any) => p.payment_mode === 'cash').map((row) => (
+                              <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
+                                <TableCell className="pl-6 font-semibold text-slate-805 dark:text-slate-205">
+                                  {vendors.find(v => v.id === row.vendor_id)?.name || 'Unknown'}
+                                </TableCell>
+                                <TableCell className="text-slate-500">
+                                  {heads.find(h => h.id === row.purchase_head_id)?.name || 'General'}
+                                </TableCell>
+                                <TableCell className="text-right font-mono font-bold text-slate-850 dark:text-slate-200">{formatRupee(Number(row.amount))}</TableCell>
+                                {isEditable && (
+                                  <TableCell className="pr-6 text-center">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => handleDeletePurchase(row.id)}
+                                      className="h-7 w-7 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-955/20"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={isEditable ? 4 : 3} className="text-center py-6 text-slate-400">
+                                <p className="text-xs">No cash purchases logged today.</p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  {/* Expenses Column */}
+                  <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
+                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-955/20 py-4 flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Cash Expenses</CardTitle>
+                        <CardDescription className="text-xs">Log daily cash expenses (staff food, auto fair, donation, etc.)</CardDescription>
+                      </div>
+                      {isEditable && (
+                        <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
+                          <DialogTrigger render={
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-1.5 h-9 font-semibold text-xs rounded-xl border-stone-300"
+                              onClick={() => expForm.setValue('payment_mode', 'cash')}
+                            >
+                              <Plus className="h-4 w-4" /> Add Expense
+                            </Button>
+                          } />
+                          <DialogContent className="sm:max-w-md bg-white dark:bg-slate-955 border dark:border-slate-800">
+                            <DialogHeader>
+                              <DialogTitle>Add Cash Expense</DialogTitle>
+                            </DialogHeader>
+                            <form onSubmit={expForm.handleSubmit(handleAddExpense)} className="space-y-4 pt-2">
+                              <div>
+                                <Label htmlFor="expense_category_id" className="text-xs font-semibold">Expense Category</Label>
+                                <Select onValueChange={(v: any) => expForm.setValue('expense_category_id', v)}>
+                                  <SelectTrigger className="w-full mt-1.5 h-11">
+                                    <SelectValue placeholder="Select category" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white dark:bg-slate-955 border dark:border-slate-800">
+                                    {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="amount" className="text-xs font-semibold">Expense Amount (₹)</Label>
+                                <Input id="amount" type="number" step="0.01" {...expForm.register('amount')} className="mt-1.5 h-11 font-mono focus:ring-primary" />
+                              </div>
+                              <div>
+                                <Label htmlFor="description" className="text-xs font-semibold">Details / Description</Label>
+                                <Input id="description" placeholder="e.g. Electricity bill payout / Broom stick buy" {...expForm.register('description')} className="mt-1.5 h-11 focus:ring-primary" />
+                              </div>
+                              <DialogFooter className="pt-2">
+                                <Button type="submit" className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold h-11">
+                                  Save Expense
+                                </Button>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader className="bg-stone-50/50 dark:bg-slate-955/20">
+                          <TableRow className="border-stone-100 dark:border-slate-900">
+                            <TableHead className="pl-6">Category</TableHead>
+                            <TableHead>Details</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            {isEditable && <TableHead className="w-12"></TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {expenses.filter((e: any) => e.payment_mode === 'cash').length > 0 ? (
+                            expenses.filter((e: any) => e.payment_mode === 'cash').map((row) => (
+                              <TableRow key={row.id} className="border-stone-100 dark:border-slate-900">
+                                <TableCell className="pl-6 font-semibold text-slate-805 dark:text-slate-205">
+                                  {categories.find(c => c.id === row.expense_category_id)?.name || 'General'}
+                                </TableCell>
+                                <TableCell className="text-slate-605">{row.description}</TableCell>
+                                <TableCell className="text-right font-mono font-bold text-slate-805 dark:text-slate-205">{formatRupee(Number(row.amount))}</TableCell>
+                                {isEditable && (
+                                  <TableCell className="pr-6 text-center">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => handleDeleteExpense(row.id)}
+                                      className="h-7 w-7 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-955/20"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={isEditable ? 4 : 3} className="text-center py-6 text-slate-400">
+                                <p className="text-xs">No cash expenses logged today.</p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+              {userRole === 'outlet_manager' && (
+                <div className="animate-in fade-in-50 duration-200">
                   {/* Card 3: Closing Drawer Summary (Cash) */}
                   <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden">
-                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-950/20 py-4">
+                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-955/20 py-4">
                       <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Closing Drawer Summary (Cash)</CardTitle>
                       <CardDescription className="text-xs">Verify cash drawer closing balance and calculate excess or short cash.</CardDescription>
                     </CardHeader>
@@ -1098,7 +1329,7 @@ function DaybookContent() {
                           <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
                             Calculated Cash Sales
                           </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-855 dark:text-slate-100">
                             {formatRupee(totalCashSales)}
                           </div>
                         </div>
@@ -1110,7 +1341,7 @@ function DaybookContent() {
                           <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
                             Total Purchases (Cash)
                           </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-855 dark:text-slate-100">
                             {formatRupee(totalCashPurchases)}
                           </div>
                         </div>
@@ -1120,7 +1351,7 @@ function DaybookContent() {
                           <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
                             Total Expenses (Cash)
                           </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-855 dark:text-slate-100">
                             {formatRupee(totalCashExpenses)}
                           </div>
                         </div>
@@ -1132,7 +1363,7 @@ function DaybookContent() {
                           <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
                             Expected Cash
                           </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
+                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-855 dark:text-slate-100">
                             {formatRupee(expectedCash)}
                           </div>
                         </div>
@@ -1165,10 +1396,10 @@ function DaybookContent() {
                         </span>
                         <div className={`font-bold font-mono text-lg h-11 flex items-center px-3 rounded-lg border ${
                           cashDifference === 0 
-                            ? 'border-emerald-200 bg-emerald-50/20 text-emerald-700' 
+                            ? 'border-emerald-250 bg-emerald-50/20 text-emerald-700' 
                             : cashDifference < 0 
-                              ? 'border-rose-200 bg-rose-50/20 text-rose-600' 
-                              : 'border-amber-200 bg-amber-50/20 text-amber-700'
+                              ? 'border-rose-250 bg-rose-50/20 text-rose-600' 
+                              : 'border-amber-250 bg-amber-50/20 text-amber-700'
                         }`}>
                           {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
                           {cashDifference === 0 && ' (Perfect Balance)'}
@@ -1179,111 +1410,6 @@ function DaybookContent() {
 
                     </CardContent>
                   </Card>
-
-                  {/* Card 4: Closing Bank Summary (Bank) */}
-                  <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50 duration-200">
-                    <CardHeader className="border-b border-stone-100 dark:border-slate-900 bg-stone-50/50 dark:bg-slate-955/20 py-4">
-                      <CardTitle className="text-base font-bold tracking-tight text-slate-800 dark:text-white">Closing Bank Summary (Excel)</CardTitle>
-                      <CardDescription className="text-xs">Verify bank opening balance, UPI / digital settlements, and closing balance.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-6">
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Opening Bank Input */}
-                        <div className="space-y-1.5">
-                          <Label htmlFor="mgr-bank-opening" className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                            Opening Bank (₹)
-                          </Label>
-                          <Input
-                            id="mgr-bank-opening"
-                            type="number"
-                            step="0.01"
-                            disabled={!isEditable}
-                            value={bankOpening || ''}
-                            onChange={(e) => {
-                              const val = Number(e.target.value) || 0;
-                              setBankOpening(val);
-                            }}
-                            className="font-bold font-mono text-base h-11 text-slate-800 dark:text-slate-100 focus:ring-primary"
-                            placeholder="₹0.00"
-                          />
-                        </div>
-
-                        {/* Calculated Bank Sales */}
-                        <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                            Bank Sales (Settled)
-                          </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                            {formatRupee(Number(salesSplits.gpay) + Number(salesSplits.card) + Number(salesSplits.swiggy) + Number(salesSplits.zomato))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Total Purchases (Bank) */}
-                        <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                            Total Purchases (Bank)
-                          </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                            {formatRupee(purchases.filter((p: any) => p.payment_mode === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0))}
-                          </div>
-                        </div>
-
-                        {/* Total Expenses (Bank) */}
-                        <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                            Total Expenses (Bank)
-                          </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                            {formatRupee(expenses.filter((e: any) => e.payment_mode === 'bank' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Bank Income / Receipts */}
-                        <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                            Bank Income / Receipts
-                          </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                            {formatRupee(incomeList.filter((i: any) => i.payment_method === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0))}
-                          </div>
-                        </div>
-
-                        {/* Safe Box Deposits */}
-                        <div className="space-y-1.5">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                            Safe Box Deposits
-                          </span>
-                          <div className="font-bold font-mono text-base h-11 flex items-center px-3 rounded-lg border border-stone-200 bg-stone-100/50 text-slate-850 dark:text-slate-100">
-                            {formatRupee(bankDeposits)}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expected Closing Bank Balance */}
-                      <div className="space-y-1.5 pt-2">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide block">
-                          Closing Balance (Calculated) (₹)
-                        </span>
-                        <div className="font-bold font-mono text-lg h-11 flex items-center px-3 rounded-lg border border-emerald-200 bg-emerald-50/20 text-emerald-800">
-                          {formatRupee(
-                            bankOpening + 
-                            (Number(salesSplits.gpay) + Number(salesSplits.card) + Number(salesSplits.swiggy) + Number(salesSplits.zomato)) +
-                            incomeList.filter((i: any) => i.payment_method === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0) +
-                            bankDeposits -
-                            purchases.filter((p: any) => p.payment_mode === 'bank').reduce((a: number, b: any) => a + Number(b.amount), 0) -
-                            expenses.filter((e: any) => e.payment_mode === 'bank' && e.is_approved).reduce((a: number, b: any) => a + Number(b.amount), 0)
-                          )}
-                        </div>
-                      </div>
-
-                    </CardContent>
-                  </Card>
-
                 </div>
               )}
               {userRole === 'outlet_manager' && renderWorkflowFooter()}

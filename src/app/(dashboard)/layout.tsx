@@ -12,6 +12,7 @@ import {
   Users, 
   Coins,
   Building,
+  Wallet,
   BarChart3,
   UserCheck,
   Settings,
@@ -45,9 +46,8 @@ function NavigationList({ pathname, onClick, userRole }: { pathname: string; onC
 
   const visibleItems = userRole === 'outlet_manager'
     ? [
-        { name: 'Daily Sales', href: '/daybook?tab=sales', icon: ClipboardList },
-        { name: 'Items Bought', href: '/daybook?tab=purchases', icon: ShoppingBag },
-        { name: 'Shop Expenses', href: '/daybook?tab=expenses', icon: Receipt },
+        { name: 'CASH', href: '/daybook?tab=cash', icon: Wallet },
+        { name: 'BANK', href: '/daybook?tab=bank', icon: Building },
       ]
     : navigationItems;
 
