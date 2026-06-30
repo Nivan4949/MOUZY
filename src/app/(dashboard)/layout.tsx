@@ -38,13 +38,20 @@ const navigationItems: SidebarItem[] = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-function NavigationList({ pathname, onClick }: { pathname: string; onClick: () => void }) {
+function NavigationList({ pathname, onClick, userRole }: { pathname: string; onClick: () => void; userRole: string | null }) {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab');
 
+  const visibleItems = navigationItems.filter((item) => {
+    if (userRole === 'outlet_manager') {
+      return item.name === 'Daily Daybook';
+    }
+    return true;
+  });
+
   return (
     <nav className="flex-1 space-y-1 px-4 py-6 overflow-y-auto">
-      {navigationItems.map((item) => {
+      {visibleItems.map((item) => {
         const urlPath = item.href.split('?')[0];
         const urlTab = item.href.includes('?') ? item.href.split('?')[1].split('=')[1] : null;
 
@@ -79,16 +86,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const supabase = createClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email || 'user@mouzyerp.com');
+        const role = user.user_metadata?.app_role || 'super_admin';
+        setUserRole(role);
+        
+        // Redirect outlet manager to daybook if on root dashboard
+        if (role === 'outlet_manager' && pathname === '/') {
+          router.push('/daybook');
+        }
       }
     }
     fetchUser();
-  }, [supabase]);
+  }, [supabase, pathname, router]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -155,7 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Navigation Items */}
         <Suspense fallback={<div className="flex-1 px-4 py-6 animate-pulse text-xs text-slate-400">Loading menus...</div>}>
-          <NavigationList pathname={pathname} onClick={() => setSidebarOpen(false)} />
+          <NavigationList pathname={pathname} onClick={() => setSidebarOpen(false)} userRole={userRole} />
         </Suspense>
 
         {/* User Footer Profile */}
@@ -166,7 +181,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-semibold text-white truncate">
-                Branch Manager
+                {userRole === 'outlet_manager' ? 'Outlet Manager' : 'Branch Manager'}
               </p>
               <p className="text-[10px] text-emerald-200 truncate">
                 {userEmail}

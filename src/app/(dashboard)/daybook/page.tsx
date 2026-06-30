@@ -636,7 +636,7 @@ function DaybookContent() {
   };
 
   const handleSubmitDaybook = async () => {
-    if (Math.abs(cashDifference) > 0 && !justification.trim()) {
+    if (userRole !== 'outlet_manager' && Math.abs(cashDifference) > 0 && !justification.trim()) {
       alert('Justification comments are mandatory when a cash variance exists.');
       return;
     }
@@ -755,7 +755,12 @@ function DaybookContent() {
     { id: 'expenses', label: 'Shop Expenses 💸', icon: Receipt },
     { id: 'bank', label: 'Safe Box & Bank 🏦', icon: Building },
     { id: 'cashbook', label: 'Cash Counter 🪙', icon: Coins },
-  ];
+  ].filter(tab => {
+    if (userRole === 'outlet_manager') {
+      return tab.id === 'sales';
+    }
+    return true;
+  });
 
   // Tab live progress metrics helpers
   const getTabLiveValue = (id: string) => {
@@ -955,31 +960,35 @@ function DaybookContent() {
                 </div>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-6">
-                {[
-                  { key: 'systemSales', label: 'Total Billed Sales (POS)', icon: ClipboardList, color: 'text-primary' },
-                  { key: 'gpay', label: 'GPay / UPI Receipts', icon: CreditCard, color: 'text-indigo-500' },
-                  { key: 'card', label: 'Card Swipes', icon: CreditCard, color: 'text-blue-500' },
-                  { key: 'swiggy', label: 'Swiggy Delivery Sales', icon: TrendingUp, color: 'text-orange-500' },
-                  { key: 'zomato', label: 'Zomato Delivery Sales', icon: TrendingUp, color: 'text-rose-500' },
-                  { key: 'online', label: 'Other Online Orders', icon: ArrowRight, color: 'text-slate-500' },
-                ].map(item => (
-                  <div key={item.key} className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      <item.icon className={`h-4 w-4 ${item.color}`} />
-                      <span>{item.label}</span>
+                {(() => {
+                  const itemsToRender = [
+                    { key: 'systemSales', label: 'Total Sales', icon: ClipboardList, color: 'text-primary' },
+                    { key: 'gpay', label: 'UPI / G-Pay Sales', icon: CreditCard, color: 'text-indigo-500' },
+                    { key: 'card', label: 'Credit Card / Card Sales', icon: CreditCard, color: 'text-blue-500' },
+                    { key: 'swiggy', label: 'Swiggy', icon: TrendingUp, color: 'text-orange-500' },
+                    { key: 'zomato', label: 'Zomato', icon: TrendingUp, color: 'text-rose-500' },
+                    ...(userRole !== 'outlet_manager' ? [{ key: 'online', label: 'Other Online Orders', icon: ArrowRight, color: 'text-slate-500' }] : []),
+                  ];
+
+                  return itemsToRender.map(item => (
+                    <div key={item.key} className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        disabled={!isEditable}
+                        value={salesSplits[item.key as keyof typeof salesSplits] || ''}
+                        placeholder="₹0.00"
+                        onChange={(e) => handleSplitChange(item.key, e.target.value)}
+                        className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100 focus:ring-primary"
+                      />
                     </div>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      disabled={!isEditable}
-                      value={salesSplits[item.key as keyof typeof salesSplits] || ''}
-                      placeholder="₹0.00"
-                      onChange={(e) => handleSplitChange(item.key, e.target.value)}
-                      className="font-bold font-mono text-lg h-12 text-slate-800 dark:text-slate-100 focus:ring-primary"
-                    />
-                  </div>
-                ))}
+                  ));
+                })()}
 
                 {/* Auto Calculated Cash Sales */}
                 <div className="space-y-1.5 p-4 rounded-xl border border-stone-100 dark:border-stone-900 bg-stone-50/10 col-span-1 sm:col-span-2">
@@ -1558,109 +1567,124 @@ function DaybookContent() {
                 <CardDescription className="text-xs">Compare expected cash in the drawer against what you counted.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
-                
                 {/* Statistics Lists */}
-                <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
-                  <div className="flex justify-between items-center">
-                    <span>Opening Drawer Cash</span>
-                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(Number(daybook.opening_cash))}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Cash Billed Sales (+)</span>
-                    <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashSales)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Extra Cash Received (+)</span>
-                    <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashIncome)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Cash Paid Out (Items/Expenses) (-)</span>
-                    <span className="font-mono text-rose-600">-{formatRupee(totalCashPurchases + totalCashExpenses)}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-stone-150 dark:border-slate-900 pb-2">
-                    <span>Cash Sent to Safe/Bank (-)</span>
-                    <span className="font-mono text-rose-600">-{formatRupee(bankDeposits - bankWithdrawals)}</span>
-                  </div>
-                </div>
-
-                {/* Audit Drawer Check */}
-                <div className="space-y-2.5 pt-2 border-b border-stone-150 dark:border-slate-900 pb-4">
-                  <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                    <span>Expected Cash in Drawer:</span>
-                    <span className="font-mono text-sm">{formatRupee(expectedCash)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                    <span>Actual Counted Cash:</span>
-                    <span className="font-mono text-sm">{formatRupee(actualCash)}</span>
-                  </div>
-                </div>
-
-                {/* Dynamic Status Variance Badge */}
-                {cashDifference === 0 ? (
-                  <div className="p-4 rounded-xl border border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex flex-col items-center justify-center gap-1.5 text-center">
-                    <span className="text-xl font-bold">🎉 Perfect Balance!</span>
-                    <p className="text-[11px] leading-snug font-semibold text-emerald-700 dark:text-emerald-400">Counted cash matches expected cash exactly. Great job!</p>
+                {userRole === 'outlet_manager' ? (
+                  <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
+                    <div className="flex justify-between items-center">
+                      <span>Total Sales</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-600">
+                      <span>Calculated Cash Sales</span>
+                      <span className="font-mono">{formatRupee(calculatedCash)}</span>
+                    </div>
                   </div>
                 ) : (
-                  <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
-                    Math.abs(cashDifference) <= 200
-                      ? 'bg-amber-50 border-amber-250 text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50'
-                      : 'bg-rose-50 border-rose-250 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50'
-                  }`}>
-                    <div className="flex items-center justify-between font-extrabold text-sm">
-                      <span>Drawer Difference:</span>
-                      <span className="font-mono text-base">
-                        {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
-                      </span>
+                  <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
+                    <div className="flex justify-between items-center">
+                      <span>Opening Drawer Cash</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(Number(daybook.opening_cash))}</span>
                     </div>
-                    <p className="text-[10px] opacity-90 leading-snug font-semibold">
-                      {cashDifference < 0 
-                        ? `Drawer is short by ${formatRupee(Math.abs(cashDifference))}. Please type a short reason below.`
-                        : `Drawer has an extra ${formatRupee(cashDifference)}. Please type a short reason below.`
-                      }
-                    </p>
+                    <div className="flex justify-between items-center">
+                      <span>Cash Billed Sales (+)</span>
+                      <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashSales)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Extra Cash Received (+)</span>
+                      <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashIncome)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-rose-600">
+                      <span>Cash Paid Out (Items/Expenses) (-)</span>
+                      <span className="font-mono">-{formatRupee(totalCashPurchases + totalCashExpenses)}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-stone-150 dark:border-slate-900 pb-2">
+                      <span>Cash Sent to Safe/Bank (-)</span>
+                      <span className="font-mono">-{formatRupee(bankDeposits - bankWithdrawals)}</span>
+                    </div>
                   </div>
                 )}
 
-                {/* Variance Comments Field */}
-                {Math.abs(cashDifference) > 0 && (
-                  <div className="space-y-1.5 pt-2">
-                    <Label htmlFor="justification" className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      <span>Reason for Cash Difference</span>
-                    </Label>
-                    <textarea
-                      id="justification"
-                      rows={3}
-                      disabled={!isEditable}
-                      placeholder="e.g., Cashier short change given, or forgot to log banana local purchase..."
-                      value={justification}
-                      onChange={(e) => setJustification(e.target.value)}
-                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-455 font-semibold text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
+                {userRole !== 'outlet_manager' && (
+                  <>
+                    {/* Audit Drawer Check */}
+                    <div className="space-y-2.5 pt-2 border-b border-stone-150 dark:border-slate-900 pb-4">
+                      <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                        <span>Expected Cash in Drawer:</span>
+                        <span className="font-mono text-sm">{formatRupee(expectedCash)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                        <span>Actual Counted Cash:</span>
+                        <span className="font-mono text-sm">{formatRupee(actualCash)}</span>
+                      </div>
+                    </div>
+
+                    {/* Dynamic Status Variance Badge */}
+                    {cashDifference === 0 ? (
+                      <div className="p-4 rounded-xl border border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex flex-col items-center justify-center gap-1.5 text-center">
+                        <span className="text-xl font-bold">🎉 Perfect Balance!</span>
+                        <p className="text-[11px] leading-snug font-semibold text-emerald-700 dark:text-emerald-400">Counted cash matches expected cash exactly. Great job!</p>
+                      </div>
+                    ) : (
+                      <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
+                        Math.abs(cashDifference) <= 200
+                          ? 'bg-amber-50 border-amber-250 text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50'
+                          : 'bg-rose-50 border-rose-250 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50'
+                      }`}>
+                        <div className="flex items-center justify-between font-extrabold text-sm">
+                          <span>Drawer Difference:</span>
+                          <span className="font-mono text-base">
+                            {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] opacity-90 leading-snug font-semibold">
+                          {cashDifference < 0 
+                            ? `Drawer is short by ${formatRupee(Math.abs(cashDifference))}. Please type a short reason below.`
+                            : `Drawer has an extra ${formatRupee(cashDifference)}. Please type a short reason below.`
+                          }
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Variance Comments Field */}
+                    {Math.abs(cashDifference) > 0 && (
+                      <div className="space-y-1.5 pt-2">
+                        <Label htmlFor="justification" className="text-xs font-bold text-rose-600 dark:text-rose-450 flex items-center gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span>Reason for Cash Difference</span>
+                        </Label>
+                        <textarea
+                          id="justification"
+                          rows={3}
+                          disabled={!isEditable}
+                          placeholder="e.g., Cashier short change given, or forgot to log banana local purchase..."
+                          value={justification}
+                          onChange={(e) => setJustification(e.target.value)}
+                          className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-455 font-semibold text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                    )}
+
+                    {/* KPI Metrics */}
+                    <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-550 font-semibold">
+                      <div className="flex justify-between items-center">
+                        <span>Total Sales Billed (POS)</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Net Sales (Excl. Tax)</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(netSales)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Total Purchases logged today</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
+                      </div>
+                      <div className="flex justify-between items-center font-bold text-slate-700 dark:text-slate-350">
+                        <span>Ingredient Cost % (Food Cost)</span>
+                        <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </>
                 )}
-
-                {/* KPI Metrics */}
-                <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-550 font-semibold">
-                  <div className="flex justify-between items-center">
-                    <span>Total Sales Billed (POS)</span>
-                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Net Sales (Excl. Tax)</span>
-                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(netSales)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Total Purchases logged today</span>
-                    <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
-                  </div>
-                  <div className="flex justify-between items-center font-bold text-slate-700 dark:text-slate-350">
-                    <span>Ingredient Cost % (Food Cost)</span>
-                    <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(1)}%</span>
-                  </div>
-                </div>
-
               </CardContent>
 
               {/* Action Buttons Footer with workflow status routing */}

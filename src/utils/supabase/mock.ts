@@ -474,12 +474,21 @@ export class MockSupabaseClient {
       const isDefaultUser = normalizedEmail === 'mouzy' || normalizedEmail === 'mouzy@mouzyerp.com';
       const isDefaultPassword = password === 'Mouzy@123';
 
+      const isManagerUser = normalizedEmail === 'manager' || normalizedEmail === 'manager@mouzyerp.com';
+      const isManagerPassword = password === 'Manager@123';
+
       let matchedUser: any = null;
       let isPasswordMatch = false;
       let userEmail = 'mouzy@mouzyerp.com';
+      let role = 'super_admin';
 
       if (isDefaultUser && isDefaultPassword) {
         isPasswordMatch = true;
+        role = 'super_admin';
+      } else if (isManagerUser && isManagerPassword) {
+        isPasswordMatch = true;
+        userEmail = 'manager@mouzyerp.com';
+        role = 'outlet_manager';
       } else if (typeof window !== 'undefined') {
         const createdUsersRaw = localStorage.getItem('mouzy_mock_created_users') || '[]';
         const createdUsers = JSON.parse(createdUsersRaw);
@@ -489,17 +498,17 @@ export class MockSupabaseClient {
         if (matchedUser && matchedUser.password === password) {
           isPasswordMatch = true;
           userEmail = matchedUser.username.includes('@') ? matchedUser.username : `${matchedUser.username}@mouzyerp.com`;
+          role = 'super_admin'; // default role for created users
         }
       }
 
       if (!isPasswordMatch) {
         return { 
           data: { user: null }, 
-          error: { message: 'Invalid credentials. Please use username "mouzy" and password "Mouzy@123".' } 
+          error: { message: 'Invalid credentials. Please use username "mouzy" or "manager" with their respective passwords.' } 
         };
       }
 
-      const role = 'super_admin';
       if (typeof window !== 'undefined') {
         localStorage.setItem('sb-mock-logged-in', 'true');
         localStorage.setItem('sb-mock-email', userEmail);
