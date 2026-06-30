@@ -757,7 +757,7 @@ function DaybookContent() {
     { id: 'cashbook', label: 'Cash Counter 🪙', icon: Coins },
   ].filter(tab => {
     if (userRole === 'outlet_manager') {
-      return tab.id === 'sales';
+      return tab.id === 'sales' || tab.id === 'purchases' || tab.id === 'expenses';
     }
     return true;
   });
@@ -1577,6 +1577,14 @@ function DaybookContent() {
                     <div className="flex justify-between items-center text-emerald-600">
                       <span>Calculated Cash Sales</span>
                       <span className="font-mono">{formatRupee(calculatedCash)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Total Purchases (Items Bought)</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-rose-600">
+                      <span>Total Shop Expenses</span>
+                      <span className="font-mono">-{formatRupee(expenses.reduce((sum: number, e: any) => sum + (e.is_approved ? Number(e.amount) : 0), 0))}</span>
                     </div>
                   </div>
                 ) : (

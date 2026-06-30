@@ -23,7 +23,8 @@ export function getMockDefaults(table: string): any[] {
       ];
     case 'roles':
       return [
-        { id: '00000000-0000-0000-0000-000000000100', tenant_id: '00000000-0000-0000-0000-000000000001', role_name: 'super_admin', permissions: ['*'] }
+        { id: '00000000-0000-0000-0000-000000000100', tenant_id: '00000000-0000-0000-0000-000000000001', role_name: 'super_admin', permissions: ['*'] },
+        { id: '00000000-0000-0000-0000-000000000101', tenant_id: '00000000-0000-0000-0000-000000000001', role_name: 'outlet_manager', permissions: ['*'] }
       ];
     case 'users':
       return [
@@ -150,11 +151,24 @@ class MockQueryBuilder {
     if (typeof window === 'undefined') return [];
     const key = `mouzy_mock_${this.table}`;
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    let data = raw ? JSON.parse(raw) : getMockDefaults(this.table);
     
-    const defaults = getMockDefaults(this.table);
-    localStorage.setItem(key, JSON.stringify(defaults));
-    return defaults;
+    if (this.table === 'users') {
+      const email = localStorage.getItem('sb-mock-email') || 'mouzy@mouzyerp.com';
+      const role = localStorage.getItem('sb-mock-role') || 'super_admin';
+      const roleId = role === 'outlet_manager' ? '00000000-0000-0000-0000-000000000101' : '00000000-0000-0000-0000-000000000100';
+      data = data.map((u: any) => {
+        if (u.id === '00000000-0000-0000-0000-000000000099') {
+          return { ...u, email, role_id: roleId };
+        }
+        return u;
+      });
+    }
+    
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+    return data;
   }
 
   private saveData(data: any[]) {

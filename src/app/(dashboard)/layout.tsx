@@ -42,12 +42,13 @@ function NavigationList({ pathname, onClick, userRole }: { pathname: string; onC
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab');
 
-  const visibleItems = navigationItems.filter((item) => {
-    if (userRole === 'outlet_manager') {
-      return item.name === 'Daily Daybook';
-    }
-    return true;
-  });
+  const visibleItems = userRole === 'outlet_manager'
+    ? [
+        { name: 'Daily Sales', href: '/daybook?tab=sales', icon: ClipboardList },
+        { name: 'Items Bought', href: '/daybook?tab=purchases', icon: ShoppingBag },
+        { name: 'Shop Expenses', href: '/daybook?tab=expenses', icon: Receipt },
+      ]
+    : navigationItems;
 
   return (
     <nav className="flex-1 space-y-1 px-4 py-6 overflow-y-auto">
@@ -98,7 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         
         // Redirect outlet manager to daybook if on root dashboard
         if (role === 'outlet_manager' && pathname === '/') {
-          router.push('/daybook');
+          router.push('/daybook?tab=sales');
         }
       }
     }
