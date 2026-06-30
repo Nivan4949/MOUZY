@@ -173,6 +173,52 @@ function DaybookContent() {
     }).format(value);
   };
 
+  const renderWorkflowFooter = () => {
+    if (!daybook) return null;
+    return (
+      <div className="pt-4 pb-6 flex flex-col sm:flex-row gap-3 border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-4 px-6">
+        {isEditable && (
+          <>
+            <Button 
+              onClick={() => handleSaveDraft(false)}
+              className="flex-1 border border-stone-250 bg-white hover:bg-stone-50 text-slate-850 font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm dark:bg-stone-900 dark:border-slate-850 dark:text-slate-100 transition-all h-11 text-xs"
+            >
+              <Save className="h-4 w-4" /> Manual Save Draft
+            </Button>
+            <Button 
+              onClick={handleSubmitDaybook}
+              disabled={isSalesInvalid}
+              className="flex-1 bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all h-11 text-xs"
+            >
+              <CheckCircle2 className="h-4 w-4" /> Submit to Area Manager
+            </Button>
+          </>
+        )}
+
+        {daybook.status === 'submitted' && (
+          <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-amber-250 bg-amber-50/20 text-amber-700 font-bold text-xs">
+            <Lock className="h-4 w-4" />
+            <span>Submitted - Awaiting Branch Manager Approval</span>
+          </div>
+        )}
+
+        {daybook.status === 'branch_approved' && (
+          <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-blue-200 bg-blue-50/20 text-blue-700 font-bold text-xs">
+            <Lock className="h-4 w-4" />
+            <span>Awaiting Finance Approval & Lock</span>
+          </div>
+        )}
+
+        {daybook.status === 'approved' && (
+          <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-emerald-250 bg-emerald-50/20 text-emerald-700 font-bold text-xs">
+            <Lock className="h-4 w-4" />
+            <span>Locked & Approved by Finance</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   async function loadActiveDaybook() {
     try {
       setLoading(true);
@@ -885,65 +931,67 @@ function DaybookContent() {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
         
         {/* PANEL 1: Left Step Navigator & Progress (xl:col-span-3) */}
-        <div className="xl:col-span-3 space-y-4">
-          <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 p-4 rounded-2xl shadow-sm flex flex-col gap-4">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Daybook Progress</span>
-                <span className="text-xs font-mono font-black text-primary">{successTabsCount}/5 filled</span>
+        {userRole !== 'outlet_manager' && (
+          <div className="xl:col-span-3 space-y-4">
+            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 p-4 rounded-2xl shadow-sm flex flex-col gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Daybook Progress</span>
+                  <span className="text-xs font-mono font-black text-primary">{successTabsCount}/5 filled</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-primary h-full transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-primary h-full transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
 
-            <nav className="flex flex-col gap-2">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isSelected = activeTab === tab.id;
-                const status = getTabStatus(tab.id);
-                const liveVal = getTabLiveValue(tab.id);
+              <nav className="flex flex-col gap-2">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isSelected = activeTab === tab.id;
+                  const status = getTabStatus(tab.id);
+                  const liveVal = getTabLiveValue(tab.id);
 
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleTabChange(tab.id)}
-                    className={`w-full flex flex-col gap-1 items-start text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
-                      isSelected
-                        ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/10'
-                        : 'bg-white border-stone-200 hover:bg-stone-50 hover:border-stone-300 text-stone-700 dark:bg-slate-950 dark:border-slate-850 dark:text-slate-350 dark:hover:bg-slate-900/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 w-full">
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider flex-1">{tab.label}</span>
-                      {status === 'success' && (
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10 shrink-0" />
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={`w-full flex flex-col gap-1 items-start text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
+                        isSelected
+                          ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/10'
+                          : 'bg-white border-stone-200 hover:bg-stone-50 hover:border-stone-300 text-stone-700 dark:bg-slate-950 dark:border-slate-850 dark:text-slate-350 dark:hover:bg-slate-900/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 w-full">
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider flex-1">{tab.label}</span>
+                        {status === 'success' && (
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10 shrink-0" />
+                        )}
+                        {status === 'error' && (
+                          <span className="h-2 w-2 rounded-full bg-rose-500 ring-4 ring-rose-500/10 shrink-0" />
+                        )}
+                        {status === 'empty' && (
+                          <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700 shrink-0" />
+                        )}
+                      </div>
+                      {liveVal && (
+                        <span className={`text-[10px] font-extrabold font-mono ml-6.5 ${isSelected ? 'text-primary-foreground/80' : 'text-slate-500'}`}>
+                          {liveVal}
+                        </span>
                       )}
-                      {status === 'error' && (
-                        <span className="h-2 w-2 rounded-full bg-rose-500 ring-4 ring-rose-500/10 shrink-0" />
-                      )}
-                      {status === 'empty' && (
-                        <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700 shrink-0" />
-                      )}
-                    </div>
-                    {liveVal && (
-                      <span className={`text-[10px] font-extrabold font-mono ml-6.5 ${isSelected ? 'text-primary-foreground/80' : 'text-slate-500'}`}>
-                        {liveVal}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </Card>
-        </div>
+                    </button>
+                  );
+                })}
+              </nav>
+            </Card>
+          </div>
+        )}
 
-        {/* PANEL 2: Center Active Worksheet Form (xl:col-span-6) */}
-        <div className="xl:col-span-6 space-y-6">
+        {/* PANEL 2: Center Active Worksheet Form (xl:col-span-6 or col-span-12) */}
+        <div className={userRole === 'outlet_manager' ? "col-span-12 max-w-4xl mx-auto w-full space-y-6" : "xl:col-span-6 space-y-6"}>
           
           {/* TAB 1: SALES SPLITS */}
           {activeTab === 'sales' && (
@@ -1007,6 +1055,7 @@ function DaybookContent() {
                   )}
                 </div>
               </CardContent>
+              {userRole === 'outlet_manager' && renderWorkflowFooter()}
             </Card>
           )}
 
@@ -1139,6 +1188,7 @@ function DaybookContent() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                {userRole === 'outlet_manager' && renderWorkflowFooter()}
               </Card>
 
               {/* Purchase % Analysis Card */}
@@ -1311,6 +1361,7 @@ function DaybookContent() {
                   </TableBody>
                 </Table>
               </CardContent>
+              {userRole === 'outlet_manager' && renderWorkflowFooter()}
             </Card>
           )}
 
@@ -1556,271 +1607,273 @@ function DaybookContent() {
         </div>
 
         {/* Right Side: Sticky Summary Audit Panel (Live update) */}
-        <div className="xl:col-span-3">
-          <div className="xl:sticky xl:top-6 self-start space-y-6">
-            
-            <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-md rounded-2xl overflow-hidden">
-              <CardHeader className="border-b border-stone-150 dark:border-slate-900 bg-stone-50/80 dark:bg-slate-950/30 py-4">
-                <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-slate-700 dark:text-slate-350">
-                  Daily Balance Check 💰
-                </CardTitle>
-                <CardDescription className="text-xs">Compare expected cash in the drawer against what you counted.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                {/* Statistics Lists */}
-                {userRole === 'outlet_manager' ? (
-                  <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
-                    <div className="flex justify-between items-center">
-                      <span>Total Sales</span>
-                      <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-emerald-600">
-                      <span>Calculated Cash Sales</span>
-                      <span className="font-mono">{formatRupee(calculatedCash)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Total Purchases (Items Bought)</span>
-                      <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-rose-600">
-                      <span>Total Shop Expenses</span>
-                      <span className="font-mono">-{formatRupee(expenses.reduce((sum: number, e: any) => sum + (e.is_approved ? Number(e.amount) : 0), 0))}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
-                    <div className="flex justify-between items-center">
-                      <span>Opening Drawer Cash</span>
-                      <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(Number(daybook.opening_cash))}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Cash Billed Sales (+)</span>
-                      <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashSales)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Extra Cash Received (+)</span>
-                      <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashIncome)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-rose-600">
-                      <span>Cash Paid Out (Items/Expenses) (-)</span>
-                      <span className="font-mono">-{formatRupee(totalCashPurchases + totalCashExpenses)}</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-stone-150 dark:border-slate-900 pb-2">
-                      <span>Cash Sent to Safe/Bank (-)</span>
-                      <span className="font-mono">-{formatRupee(bankDeposits - bankWithdrawals)}</span>
-                    </div>
-                  </div>
-                )}
-
-                {userRole !== 'outlet_manager' && (
-                  <>
-                    {/* Audit Drawer Check */}
-                    <div className="space-y-2.5 pt-2 border-b border-stone-150 dark:border-slate-900 pb-4">
-                      <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                        <span>Expected Cash in Drawer:</span>
-                        <span className="font-mono text-sm">{formatRupee(expectedCash)}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                        <span>Actual Counted Cash:</span>
-                        <span className="font-mono text-sm">{formatRupee(actualCash)}</span>
-                      </div>
-                    </div>
-
-                    {/* Dynamic Status Variance Badge */}
-                    {cashDifference === 0 ? (
-                      <div className="p-4 rounded-xl border border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex flex-col items-center justify-center gap-1.5 text-center">
-                        <span className="text-xl font-bold">🎉 Perfect Balance!</span>
-                        <p className="text-[11px] leading-snug font-semibold text-emerald-700 dark:text-emerald-400">Counted cash matches expected cash exactly. Great job!</p>
-                      </div>
-                    ) : (
-                      <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
-                        Math.abs(cashDifference) <= 200
-                          ? 'bg-amber-50 border-amber-250 text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50'
-                          : 'bg-rose-50 border-rose-250 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50'
-                      }`}>
-                        <div className="flex items-center justify-between font-extrabold text-sm">
-                          <span>Drawer Difference:</span>
-                          <span className="font-mono text-base">
-                            {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
-                          </span>
-                        </div>
-                        <p className="text-[10px] opacity-90 leading-snug font-semibold">
-                          {cashDifference < 0 
-                            ? `Drawer is short by ${formatRupee(Math.abs(cashDifference))}. Please type a short reason below.`
-                            : `Drawer has an extra ${formatRupee(cashDifference)}. Please type a short reason below.`
-                          }
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Variance Comments Field */}
-                    {Math.abs(cashDifference) > 0 && (
-                      <div className="space-y-1.5 pt-2">
-                        <Label htmlFor="justification" className="text-xs font-bold text-rose-600 dark:text-rose-450 flex items-center gap-1.5">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          <span>Reason for Cash Difference</span>
-                        </Label>
-                        <textarea
-                          id="justification"
-                          rows={3}
-                          disabled={!isEditable}
-                          placeholder="e.g., Cashier short change given, or forgot to log banana local purchase..."
-                          value={justification}
-                          onChange={(e) => setJustification(e.target.value)}
-                          className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-455 font-semibold text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                    )}
-
-                    {/* KPI Metrics */}
-                    <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-550 font-semibold">
+        {userRole !== 'outlet_manager' && (
+          <div className="xl:col-span-3">
+            <div className="xl:sticky xl:top-6 self-start space-y-6">
+              
+              <Card className="border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950 shadow-md rounded-2xl overflow-hidden">
+                <CardHeader className="border-b border-stone-150 dark:border-slate-900 bg-stone-50/80 dark:bg-slate-950/30 py-4">
+                  <CardTitle className="text-sm font-extrabold uppercase tracking-widest text-slate-700 dark:text-slate-350">
+                    Daily Balance Check 💰
+                  </CardTitle>
+                  <CardDescription className="text-xs">Compare expected cash in the drawer against what you counted.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-6">
+                  {/* Statistics Lists */}
+                  {userRole === 'outlet_manager' ? (
+                    <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
                       <div className="flex justify-between items-center">
-                        <span>Total Sales Billed (POS)</span>
+                        <span>Total Sales</span>
                         <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span>Net Sales (Excl. Tax)</span>
-                        <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(netSales)}</span>
+                      <div className="flex justify-between items-center text-emerald-600">
+                        <span>Calculated Cash Sales</span>
+                        <span className="font-mono">{formatRupee(calculatedCash)}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>Total Purchases logged today</span>
+                        <span>Total Purchases (Items Bought)</span>
                         <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
                       </div>
-                      <div className="flex justify-between items-center font-bold text-slate-700 dark:text-slate-350">
-                        <span>Ingredient Cost % (Food Cost)</span>
-                        <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(1)}%</span>
+                      <div className="flex justify-between items-center text-rose-600">
+                        <span>Total Shop Expenses</span>
+                        <span className="font-mono">-{formatRupee(expenses.reduce((sum: number, e: any) => sum + (e.is_approved ? Number(e.amount) : 0), 0))}</span>
                       </div>
                     </div>
-                  </>
-                )}
-              </CardContent>
-
-              {/* Action Buttons Footer with workflow status routing */}
-              <CardFooter className="pt-2 pb-6 flex flex-col gap-3 border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-4 px-6">
-                {isEditable && (
-                  <>
-                    <Button 
-                      onClick={() => handleSaveDraft(false)}
-                      className="w-full border border-stone-250 bg-white hover:bg-stone-50 text-slate-850 font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm dark:bg-stone-900 dark:border-slate-850 dark:text-slate-100 transition-all"
-                    >
-                      <Save className="h-4 w-4" /> Manual Save Draft
-                    </Button>
-                    <Button 
-                      onClick={handleSubmitDaybook}
-                      disabled={isSalesInvalid}
-                      className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
-                    >
-                      <CheckCircle2 className="h-4 w-4" /> Submit to Branch Manager
-                    </Button>
-                  </>
-                )}
-
-                {daybook.status === 'submitted' && (
-                  <>
-                    {(userRole === 'branch_manager' || userRole === 'super_admin') ? (
-                      <>
-                        <Button 
-                          onClick={handleApproveWorkflow}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
-                        >
-                          <CheckCircle2 className="h-4 w-4" /> Approve (Branch Manager)
-                        </Button>
-                        <Button 
-                          onClick={() => setRejectOpen(true)}
-                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
-                        >
-                          <XCircle className="h-4 w-4" /> Reject Sheet
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-amber-250 bg-amber-50/20 text-amber-700 font-bold text-xs">
-                        <Lock className="h-4 w-4" />
-                        <span>Submitted - Awaiting Branch Manager Approval</span>
+                  ) : (
+                    <div className="space-y-2.5 text-xs font-semibold text-slate-650 dark:text-slate-400">
+                      <div className="flex justify-between items-center">
+                        <span>Opening Drawer Cash</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(Number(daybook.opening_cash))}</span>
                       </div>
-                    )}
-                  </>
-                )}
-
-                {daybook.status === 'branch_approved' && (
-                  <>
-                    {(userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin') ? (
-                      <>
-                        <Button 
-                          onClick={handleApproveWorkflow}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
-                        >
-                          <Lock className="h-4 w-4" /> Finance Approve & Lock
-                        </Button>
-                        <Button 
-                          onClick={() => setRejectOpen(true)}
-                          className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
-                        >
-                          <XCircle className="h-4 w-4" /> Reject Sheet
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-blue-200 bg-blue-50/20 text-blue-700 font-bold text-xs">
-                        <Lock className="h-4 w-4" />
-                        <span>Awaiting Finance Approval & Lock</span>
+                      <div className="flex justify-between items-center">
+                        <span>Cash Billed Sales (+)</span>
+                        <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashSales)}</span>
                       </div>
-                    )}
-                  </>
-                )}
+                      <div className="flex justify-between items-center">
+                        <span>Extra Cash Received (+)</span>
+                        <span className="font-mono text-slate-850 dark:text-slate-200">{formatRupee(totalCashIncome)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-rose-600">
+                        <span>Cash Paid Out (Items/Expenses) (-)</span>
+                        <span className="font-mono">-{formatRupee(totalCashPurchases + totalCashExpenses)}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-stone-150 dark:border-slate-900 pb-2">
+                        <span>Cash Sent to Safe/Bank (-)</span>
+                        <span className="font-mono text-rose-600">-{formatRupee(bankDeposits - bankWithdrawals)}</span>
+                      </div>
+                    </div>
+                  )}
 
-                {daybook.status === 'approved' && (
-                  <>
-                    {(userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin') ? (
+                  {userRole !== 'outlet_manager' && (
+                    <>
+                      {/* Audit Drawer Check */}
+                      <div className="space-y-2.5 pt-2 border-b border-stone-150 dark:border-slate-900 pb-4">
+                        <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                          <span>Expected Cash in Drawer:</span>
+                          <span className="font-mono text-sm">{formatRupee(expectedCash)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                          <span>Actual Counted Cash:</span>
+                          <span className="font-mono text-sm">{formatRupee(actualCash)}</span>
+                        </div>
+                      </div>
+
+                      {/* Dynamic Status Variance Badge */}
+                      {cashDifference === 0 ? (
+                        <div className="p-4 rounded-xl border border-emerald-250 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex flex-col items-center justify-center gap-1.5 text-center">
+                          <span className="text-xl font-bold">🎉 Perfect Balance!</span>
+                          <p className="text-[11px] leading-snug font-semibold text-emerald-700 dark:text-emerald-400">Counted cash matches expected cash exactly. Great job!</p>
+                        </div>
+                      ) : (
+                        <div className={`p-4 rounded-xl border flex flex-col gap-1 transition-all duration-200 ${
+                          Math.abs(cashDifference) <= 200
+                            ? 'bg-amber-50 border-amber-250 text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50'
+                            : 'bg-rose-50 border-rose-250 text-rose-800 dark:bg-rose-950/20 dark:border-rose-900/50'
+                        }`}>
+                          <div className="flex items-center justify-between font-extrabold text-sm">
+                            <span>Drawer Difference:</span>
+                            <span className="font-mono text-base">
+                              {cashDifference > 0 ? `+${formatRupee(cashDifference)}` : formatRupee(cashDifference)}
+                            </span>
+                          </div>
+                          <p className="text-[10px] opacity-90 leading-snug font-semibold">
+                            {cashDifference < 0 
+                              ? `Drawer is short by ${formatRupee(Math.abs(cashDifference))}. Please type a short reason below.`
+                              : `Drawer has an extra ${formatRupee(cashDifference)}. Please type a short reason below.`
+                            }
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Variance Comments Field */}
+                      {Math.abs(cashDifference) > 0 && (
+                        <div className="space-y-1.5 pt-2">
+                          <Label htmlFor="justification" className="text-xs font-bold text-rose-600 dark:text-rose-455 flex items-center gap-1.5">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            <span>Reason for Cash Difference</span>
+                          </Label>
+                          <textarea
+                            id="justification"
+                            rows={3}
+                            disabled={!isEditable}
+                            placeholder="e.g., Cashier short change given, or forgot to log banana local purchase..."
+                            value={justification}
+                            onChange={(e) => setJustification(e.target.value)}
+                            className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-slate-455 font-semibold text-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+                      )}
+
+                      {/* KPI Metrics */}
+                      <div className="border-t border-stone-150 dark:border-slate-900 pt-4 mt-6 space-y-1.5 text-xs text-slate-550 font-semibold">
+                        <div className="flex justify-between items-center">
+                          <span>Total Sales Billed (POS)</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalSalesSplits)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Net Sales (Excl. Tax)</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(netSales)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Total Purchases logged today</span>
+                          <span className="font-mono text-slate-800 dark:text-slate-200">{formatRupee(totalPurchasesValue)}</span>
+                        </div>
+                        <div className="flex justify-between items-center font-bold text-slate-700 dark:text-slate-350">
+                          <span>Ingredient Cost % (Food Cost)</span>
+                          <span className="font-mono text-primary text-sm">{foodCostPercent.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+
+                {/* Action Buttons Footer with workflow status routing */}
+                <CardFooter className="pt-2 pb-6 flex flex-col gap-3 border-t border-stone-100 dark:border-slate-900 bg-stone-50/20 py-4 px-6">
+                  {isEditable && (
+                    <>
                       <Button 
-                        onClick={handleReopenWorkflow}
-                        className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                        onClick={() => handleSaveDraft(false)}
+                        className="w-full border border-stone-250 bg-white hover:bg-stone-50 text-slate-850 font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-sm dark:bg-stone-900 dark:border-slate-850 dark:text-slate-100 transition-all"
                       >
-                        <Unlock className="h-4 w-4" /> Re-open Daybook Sheet
+                        <Save className="h-4 w-4" /> Manual Save Draft
                       </Button>
-                    ) : (
-                      <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-emerald-250 bg-emerald-50/20 text-emerald-700 font-bold text-xs">
-                        <Lock className="h-4 w-4" />
-                        <span>Locked & Approved by Finance</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardFooter>
+                      <Button 
+                        onClick={handleSubmitDaybook}
+                        disabled={isSalesInvalid}
+                        className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> Submit to Branch Manager
+                      </Button>
+                    </>
+                  )}
 
-              {/* Rejection comments reason modal */}
-              <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-                <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
-                  <DialogHeader>
-                    <DialogTitle className="text-rose-650 flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5" />
-                      <span>Reject & Return Daybook Sheet</span>
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <Label htmlFor="daybook_reject_reason" className="font-semibold text-slate-700 dark:text-slate-350">Reason for rejecting this sheet (Required)</Label>
-                    <textarea
-                      id="daybook_reject_reason"
-                      rows={3}
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Write a brief explanation for the cashier to fix this sheet..."
-                      className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-slate-800 dark:text-slate-100 font-semibold"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button 
-                      onClick={handleRejectWorkflow}
-                      disabled={!rejectionReason.trim()}
-                      className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-5 rounded-xl"
-                    >
-                      Reject and Return
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </Card>
+                  {daybook.status === 'submitted' && (
+                    <>
+                      {(userRole === 'branch_manager' || userRole === 'super_admin') ? (
+                        <>
+                          <Button 
+                            onClick={handleApproveWorkflow}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                          >
+                            <CheckCircle2 className="h-4 w-4" /> Approve (Branch Manager)
+                          </Button>
+                          <Button 
+                            onClick={() => setRejectOpen(true)}
+                            className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                          >
+                            <XCircle className="h-4 w-4" /> Reject Sheet
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-amber-250 bg-amber-50/20 text-amber-700 font-bold text-xs">
+                          <Lock className="h-4 w-4" />
+                          <span>Submitted - Awaiting Branch Manager Approval</span>
+                        </div>
+                      )}
+                    </>
+                  )}
 
+                  {daybook.status === 'branch_approved' && (
+                    <>
+                      {(userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin') ? (
+                        <>
+                          <Button 
+                            onClick={handleApproveWorkflow}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                          >
+                            <Lock className="h-4 w-4" /> Finance Approve & Lock
+                          </Button>
+                          <Button 
+                            onClick={() => setRejectOpen(true)}
+                            className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                          >
+                            <XCircle className="h-4 w-4" /> Reject Sheet
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-blue-200 bg-blue-50/20 text-blue-700 font-bold text-xs">
+                          <Lock className="h-4 w-4" />
+                          <span>Awaiting Finance Approval & Lock</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {daybook.status === 'approved' && (
+                    <>
+                      {(userRole === 'finance_head' || userRole === 'accountant' || userRole === 'super_admin') ? (
+                        <Button 
+                          onClick={handleReopenWorkflow}
+                          className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-5 rounded-xl flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <Unlock className="h-4 w-4" /> Re-open Daybook Sheet
+                        </Button>
+                      ) : (
+                        <div className="w-full flex items-center gap-2 justify-center p-3 rounded-xl border border-emerald-250 bg-emerald-50/20 text-emerald-700 font-bold text-xs">
+                          <Lock className="h-4 w-4" />
+                          <span>Locked & Approved by Finance</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardFooter>
+
+                {/* Rejection comments reason modal */}
+                <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+                  <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border dark:border-slate-800">
+                    <DialogHeader>
+                      <DialogTitle className="text-rose-650 flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5" />
+                        <span>Reject & Return Daybook Sheet</span>
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <Label htmlFor="daybook_reject_reason" className="font-semibold text-slate-700 dark:text-slate-350">Reason for rejecting this sheet (Required)</Label>
+                      <textarea
+                        id="daybook_reject_reason"
+                        rows={3}
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder="Write a brief explanation for the cashier to fix this sheet..."
+                        className="w-full rounded-xl border border-stone-200 dark:border-slate-800 bg-transparent p-3 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-slate-800 dark:text-slate-100 font-semibold"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button 
+                        onClick={handleRejectWorkflow}
+                        disabled={!rejectionReason.trim()}
+                        className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-5 rounded-xl"
+                      >
+                        Reject and Return
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </Card>
+
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>
