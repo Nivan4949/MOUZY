@@ -46,6 +46,8 @@ function NavigationList({ pathname, onClick, userRole }: { pathname: string; onC
   const visibleItems = userRole === 'outlet_manager'
     ? [
         { name: 'Daily Sales', href: '/daybook?tab=sales', icon: ClipboardList },
+        { name: 'Items Bought', href: '/daybook?tab=purchases', icon: ShoppingBag },
+        { name: 'Shop Expenses', href: '/daybook?tab=expenses', icon: Receipt },
       ]
     : navigationItems;
 
