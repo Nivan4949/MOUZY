@@ -19,7 +19,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  User
+  User,
+  RefreshCw
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -189,6 +190,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </p>
             </div>
           </div>
+          {userRole === 'outlet_manager' && (
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to clear all mock daybook data? This will reset all daily sales, purchases, and expenses.')) {
+                  localStorage.removeItem('mouzy_mock_daybooks');
+                  localStorage.removeItem('mouzy_mock_sales_transactions');
+                  localStorage.removeItem('mouzy_mock_purchases');
+                  localStorage.removeItem('mouzy_mock_expenses');
+                  localStorage.removeItem('mouzy_mock_income');
+                  localStorage.removeItem('mouzy_mock_vendor_ledger');
+                  localStorage.removeItem('mouzy_mock_invoice_allocations');
+                  alert('All daybook data has been cleared. Reloading page...');
+                  window.location.reload();
+                }
+              }}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-amber-350 hover:bg-amber-950/30 transition-colors mb-1.5"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reset Daybook Data
+            </button>
+          )}
           <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-rose-350 hover:bg-rose-950/30 transition-colors"
